@@ -1,1 +1,1 @@
-# master-thesis
+# bme-master-thesis
