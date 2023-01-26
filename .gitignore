@@ -204,3 +204,4 @@ poetry.toml
 
 # Custom ignores
 data/images/*
+/logs/
