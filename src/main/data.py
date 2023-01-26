@@ -1,4 +1,4 @@
-from configurator import configurator as conf
+from main.configurator import configurator as conf
 import abc
 import numpy as np
 import glob
@@ -108,8 +108,4 @@ class DataService:
             return self.dataReader.readDirectory(path)
         
         raise RuntimeError('there is nothing to read')
-    
-
-dicomDataService = DataService(DicomReader())
-niftyDataService = DataService(NiftyReader())
-        
+           

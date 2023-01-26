@@ -1,20 +1,30 @@
 import pytest
 from main.data import *
 
+# TODO: Implement test
 def test_read_single_dicom():
-    pass
+    assert False
 
+# TODO: Implement test
 def test_read_dcm_directory():
-    pass
+    assert False
 
+# TODO: Implement test
 def test_read_dcm_directories():
-    pass
+    assert False
 
+# TODO: Implement test
+def test_read_dicom_segmentation():
+    assert False
+
+# TODO: Implement test
 def test_read_single_nifty():
-    pass
+    assert False
 
+# TODO: Implement test
 def test_read_nifty_directory():
-    pass
+    assert False
 
+# TODO: Implement test
 def test_read_nifty_directories():
-    pass
+    assert False
