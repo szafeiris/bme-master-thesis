@@ -1,17 +1,9 @@
 from src.main.configurator import configurator as conf
 
+## Logging setup
 from logging.config import dictConfig
 import logging
 
 dictConfig(conf._LOGGING_CONFIG_)
-log = logging.getLogger('main.configurator')
+log = logging.getLogger()
 
-print(conf.LOG_LEVEL)
-print(conf.getAll())
-print('blah' in conf)
-print('LOG_LEVEL' in conf)
-
-log.debug('Hello world!')
-log.info('Hello world!')
-log.error('Hello world!')
-log.critical('Hello world!')
