@@ -44,7 +44,7 @@ class DataReader:
             directories = glob.glob(path)
             self.readDirectories(directories)
 
-        elif isinstance(path, list) and isinstance(path[0], list):
+        elif isinstance(path, list) and isinstance(path[0], str):
             data = []
             try:    
                 for dcm in path:
@@ -108,4 +108,10 @@ class DataService:
             return self.dataReader.readDirectory(path)
         
         raise RuntimeError('there is nothing to read')
+    
+    def readSegmentation(self, path):
+        if not isinstance(self.__dataReader, DicomReader):
+            raise RuntimeError('cannot read segmentation (DicomDataReader is needed)')
+        
+        return self.__dataReader.readSegmentation(path)
            
