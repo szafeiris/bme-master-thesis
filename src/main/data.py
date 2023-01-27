@@ -1,4 +1,4 @@
-from main.configurator import configurator as conf
+from . import configurator as conf
 import abc
 import numpy as np
 import glob
