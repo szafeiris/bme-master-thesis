@@ -42,7 +42,7 @@ class DataReader:
                 path = os.path.join(path, '*')
             
             directories = glob.glob(path)
-            self.readDirectories(directories)
+            return self.readDirectories(directories)
 
         elif isinstance(path, list) and isinstance(path[0], str):
             data = []
@@ -54,7 +54,7 @@ class DataReader:
                 log.exception(e)
                 raise e
             finally:
-                return np.array(data)
+                return np.asarray(data, dtype=object)
         else:
             raise AttributeError('`path` should be a string or a list of strings')
 
@@ -84,7 +84,7 @@ class NiftyReader(DataReader):
         log.debug('Read nii file')
         try:
             niftiImage = nib.load(path)
-            return niftiImage.get_data()
+            return niftiImage.get_fdata()
         except Exception as e:
             log.error(f'Could not read dicom file.')
             log.exception(e)
