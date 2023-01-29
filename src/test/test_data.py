@@ -40,3 +40,12 @@ def test_read_dicom_segmentation():
 def test_read_single_nifty():
     niiReader = NiftyReader()
     assert niiReader.read(sample_nii_image) is not None
+
+def test_dataService_segmentation_works_in_dcm():
+    dataService = DataService(DicomReader())
+    assert dataService.readSegmentation(sample_dicom_segmentation) is not None
+
+def test_dataService_segmentation_works_in_dcm_only():
+    dataService = DataService(NiftyReader())
+    with pytest.raises(RuntimeError):
+        dataService.readSegmentation(sample_dicom_segmentation)
