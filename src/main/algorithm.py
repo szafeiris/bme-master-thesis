@@ -21,6 +21,7 @@ class FeatureSelectionAlgorithm(BaseEstimator):
             setattr(self.__estimator, parameter, value)
         return self
 
+# TODO: Implement mRMR feature selection method
 class MRMR(FeatureSelectionAlgorithm):
     def __init__(self, k, estimator=None):
         super().__init__(estimator)
