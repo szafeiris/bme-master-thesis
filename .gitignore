@@ -204,4 +204,5 @@ poetry.toml
 
 # Custom ignores
 data/images/*
+data/radiomics/*
 /logs/

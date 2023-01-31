@@ -11,4 +11,7 @@ log = logging.getLogger()
 dicomDataService = DataService(DicomReader())
 
 # Convert folders to nifty
-dicomDataService.convertToNifty(conf.NSCLC_IMAGES_DIR, conf.NIFTI_IMAGES_DIR)
+# dicomDataService.convertToNifty(conf.NSCLC_IMAGES_DIR, conf.NIFTI_IMAGES_DIR)
+
+# Extract radiomics from images
+dicomDataService.extractRadiomics(conf.NIFTI_IMAGES_DIR, conf.RADIOMICS_FILE)

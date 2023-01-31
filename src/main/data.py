@@ -1,5 +1,6 @@
 from . import configurator as conf
 from .converter import NiftyConverter
+from .extractor import RadiomicExtractor
 import abc
 import numpy as np
 import glob
@@ -7,6 +8,7 @@ import os
 import pydicom
 import nibabel as nib
 import SimpleITK as sitk
+import pandas as pd
 
 
 ## Logging setup
@@ -92,9 +94,10 @@ class NiftyReader(DataReader):
             raise e
 
 class DataService:
-    def __init__(self, dataReader: DataReader, dataConverter: NiftyConverter = NiftyConverter()) -> None:
+    def __init__(self, dataReader: DataReader, dataConverter: NiftyConverter = NiftyConverter(), radiomicsExtractor = RadiomicExtractor()) -> None:
         self.__dataReader = dataReader
         self.__dataConverter = dataConverter
+        self.__radiomicsExtractor = radiomicsExtractor
     
     def setDataReader(self, dataReader: DataReader):
         self.__dataReader = dataReader
@@ -137,5 +140,31 @@ class DataService:
                 else:
                     self.__dataConverter.convert(s, os.path.join(output, s.split('\\')[-1] + '.nii'))
            
-    def extractRadiomics(self, folder):
-        pass
+    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures = False):
+        csvData = {
+            'Image': [],
+            'Mask': [],
+            'Patient ID': []
+        }
+
+        log.info("Gathering image data...")
+        patients = glob.glob(os.path.join(imageFolder, '**'))
+        for patient in patients:
+            patientCode = patient.split('\\')[-1]
+            csvData['Patient ID'].append(patientCode)
+
+            series = glob.glob(os.path.join(patient, '*'))
+            for s in series:
+                if 'segmentation' in s:
+                    csvData['Mask'].append(s)
+                else:
+                    csvData['Image'].append(s)
+
+        log.info("Extracting radiomics features...")
+        radiomicFeatures = self.__radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures)
+        radiomicFeaturesDataframe = pd.DataFrame.from_records(radiomicFeatures)
+        if outputCsvFile is not None:
+            log.info('Saving radiomics file.')
+            radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
+
+        return radiomicFeatures
