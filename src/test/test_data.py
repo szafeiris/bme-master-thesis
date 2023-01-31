@@ -11,7 +11,7 @@ sample_dicom_directories_list = [
 ]
 sample_dicom_directories_string = os.path.join(conf.IMAGES_DIR, 'NSCLC_Radiogenomics/')
 sample_dicom_segmentation = os.path.join(conf.IMAGES_DIR, 'NSCLC_Radiogenomics/R01-001/09-06-1990-NA-CT CHEST ABD PELVIS WITH CON-98785/1000.000000-3D Slicer segmentation result-67652/1-1.dcm')
-sample_nii_image = os.path.join(conf.IMAGES_DIR, 'NSCLC_Radiogenomics/R01-001/09-06-1990-NA-CT CHEST ABD PELVIS WITH CON-98785/3.000000-THORAX 1.0 B45f-9574109-06-1990-NA-CT CHEST ABD PELVIS WITH CON-98785.nii')
+sample_nii_image = os.path.join(conf.IMAGES_DIR, 'nifty_files//R01-001//3.000000-THORAX 1.0 B45f-95741.nii')
 
 
 def test_read_single_dicom():
@@ -45,7 +45,7 @@ def test_dataService_segmentation_works_in_dcm():
     dataService = DataService(DicomReader())
     assert dataService.readSegmentation(sample_dicom_segmentation) is not None
 
-def test_dataService_segmentation_works_in_dcm_only():
+def test_dataService_segmentation_throws_error_in_non_dcm():
     dataService = DataService(NiftyReader())
     with pytest.raises(RuntimeError):
         dataService.readSegmentation(sample_dicom_segmentation)
