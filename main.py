@@ -13,5 +13,11 @@ dicomDataService = DataService(DicomReader())
 # Convert folders to nifty
 # dicomDataService.convertToNifty(conf.NSCLC_IMAGES_DIR, conf.NIFTI_IMAGES_DIR)
 
-# Extract radiomics from images
-dicomDataService.extractRadiomics(conf.NIFTI_IMAGES_DIR, conf.RADIOMICS_FILE)
+# Extract radiomics from images or read them
+if os.path.exists(conf.RADIOMICS_FILE):
+    radiomicFeatures = pd.read_csv(conf.RADIOMICS_FILE).to_numpy()
+else:
+    radiomicFeatures = dicomDataService.extractRadiomics(conf.NIFTI_IMAGES_DIR, conf.RADIOMICS_FILE)
+
+# Declare labels
+y = np.asarray([0, 0, 1, 1, 0, 0])
