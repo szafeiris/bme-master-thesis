@@ -8,4 +8,7 @@ import logging
 dictConfig(conf._LOGGING_CONFIG_)
 log = logging.getLogger()
 
-dicomDataService = DataService(DicomReader)
+dicomDataService = DataService(DicomReader())
+
+# Convert folders to nifty
+dicomDataService.convertToNifty(conf.NSCLC_IMAGES_DIR, conf.NIFTI_IMAGES_DIR)

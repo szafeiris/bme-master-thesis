@@ -1,4 +1,5 @@
 import os 
+import re
 
 class Configurator:
     _SettingCommentDelimiter_ = '#'
@@ -13,6 +14,7 @@ class Configurator:
                     if not settingPair.startswith(self._SettingCommentDelimiter_):
                         settingName, settingValue = settingPair.split('=')
                         settingValue = settingValue.split(self._SettingCommentDelimiter_)[0].rstrip()
+                        settingValue = self.__proccessQuery(settingValue)
                         setattr(self, settingName, settingValue)
         except Exception as e:
             print('Could not load settings configuration.', f'Error: {e}')
@@ -62,5 +64,15 @@ class Configurator:
 
     def __contains__(self, key):
         return key in self.__dict__
+    
+    def __proccessQuery(self, value: str):
+        if ('{' not in value) and ('}' not in value):
+            return value
+
+        vals = re.findall('.*{(.*)}.*', value)
+        for v in vals:
+            value = value.replace('{' + v + '}', getattr(self, v))
+        
+        return self.__proccessQuery(value)
 
 configurator = Configurator()
