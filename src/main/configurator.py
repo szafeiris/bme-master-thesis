@@ -22,7 +22,7 @@ class Configurator:
         
         self._LOGGING_CONFIG_ = {
             'version': 1,
-            'disable_existing_loggers': False,
+            'disable_existing_loggers': True,
             'loggers': {
                 '': {
                     'level': self.LOG_LEVEL,
