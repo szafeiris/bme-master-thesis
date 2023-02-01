@@ -67,6 +67,9 @@ class Configurator:
     
     def __proccessQuery(self, value: str):
         if ('{' not in value) and ('}' not in value):
+            if value.lower() == 'true' or value.lower() == 'false':
+                return bool('True' if value.lower() == 'true' else '')
+
             return value
 
         vals = re.findall('.*{(.*)}.*', value)
