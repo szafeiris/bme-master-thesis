@@ -107,25 +107,25 @@ class DataService:
                        dataConverter: NiftyConverter = NiftyConverter(),
                        radiomicsExtractor = RadiomicExtractor(),
                        radiomicReader = RadiomicReader()) -> None:
-        self.__dataReader = dataReader
-        self.__dataConverter = dataConverter
-        self.__radiomicsExtractor = radiomicsExtractor
-        self.__radiomicReader = radiomicReader
+        self._dataReader = dataReader
+        self._dataConverter = dataConverter
+        self._radiomicsExtractor = radiomicsExtractor
+        self._radiomicReader = radiomicReader
     
     def setDataReader(self, dataReader: DataReader):
-        self.__dataReader = dataReader
+        self._dataReader = dataReader
         return self
     
     def setDataConverter(self, dataConverter: NiftyConverter):
-        self.__dataConverter = dataConverter
+        self._dataConverter = dataConverter
         return self
     
     def setRadiomicExtractor(self, radiomicExtractor: RadiomicExtractor):
-        self.__radiomicsExtractor = radiomicExtractor
+        self._radiomicsExtractor = radiomicExtractor
         return self
 
     def setRadiomicReader(self, radiomicReader: RadiomicReader):
-        self.__radiomicReader = radiomicReader
+        self._radiomicReader = radiomicReader
         return self
     
     def read(self, path):
@@ -140,10 +140,10 @@ class DataService:
         raise RuntimeError('there is nothing to read')
     
     def readSegmentation(self, path):
-        if not isinstance(self.__dataReader, DicomReader):
+        if not isinstance(self._dataReader, DicomReader):
             raise RuntimeError('cannot read segmentation (DicomDataReader is needed)')
         
-        return self.__dataReader.readSegmentation(path)
+        return self._dataReader.readSegmentation(path)
     
     @abc.abstractmethod
     def convertToNifty(self, inputPath, outputPath):
@@ -154,7 +154,7 @@ class DataService:
         pass
 
     def readRadiomics(self, csvPath):
-        return self.__radiomicReader.readCsv(csvPath)
+        return self._radiomicReader.readCsv(csvPath)
 
 
 class NsclcRadiogenomicsDataService(DataService):
@@ -176,9 +176,9 @@ class NsclcRadiogenomicsDataService(DataService):
                 if not os.path.exists(output):
                     os.mkdir(output)
                 if 'segmentation' in s:
-                    self.__dataConverter.convertSegmentation(glob.glob(os.path.join(s, '**'))[0], os.path.join(output, s.split('\\')[-1] + '.nii'))
+                    self._dataConverter.convertSegmentation(glob.glob(os.path.join(s, '**'))[0], os.path.join(output, s.split('\\')[-1] + '.nii'))
                 else:
-                    self.__dataConverter.convert(s, os.path.join(output, s.split('\\')[-1] + '.nii'))
+                    self._dataConverter.convert(s, os.path.join(output, s.split('\\')[-1] + '.nii'))
            
     def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures = False):
         csvData = {
@@ -201,7 +201,7 @@ class NsclcRadiogenomicsDataService(DataService):
                     csvData['Image'].append(s)
 
         log.info("Extracting radiomics features...")
-        radiomicFeatures = self.__radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
+        radiomicFeatures = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
         radiomicFeaturesDataframe = pd.DataFrame.from_records(radiomicFeatures)
         if outputCsvFile is not None:
             log.info('Saving radiomics file.')

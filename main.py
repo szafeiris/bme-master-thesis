@@ -18,6 +18,7 @@ if not os.path.exists(conf.NSCLC_NIFTI_IMAGES_DIR):
     dataService.convertToNifty(conf.NSCLC_IMAGES_DIR, conf.NSCLC_NIFTI_IMAGES_DIR)
 
 # Extract radiomics from images or read them
+# TODO: Check diffrence on return value of readRadiomics() and extractRadiomics(). In the first case it is ok.
 if os.path.exists(conf.NSCLC_RADIOMICS_FILE):
     radiomicFeatures = dataService.readRadiomics(conf.NSCLC_RADIOMICS_FILE)
 else:
