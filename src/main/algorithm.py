@@ -1,10 +1,12 @@
 from src.main.configurator import configurator as conf
+
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.exceptions import NotFittedError
 
 from ITMO_FS.filters.multivariate import MRMR
 
 import numpy as np
+import abc
 
 ## Logging setup
 from logging.config import dictConfig
@@ -16,10 +18,12 @@ log = logging.getLogger()
 class FeatureSelectionAlgorithm(BaseEstimator, TransformerMixin):
     def __init__(self, estimator=None):
         self.__estimator = estimator
-    
+
+    @abc.abstractclassmethod    
     def fit(self, X, y=None, **kwargs):
         self.__estimator.fit(X, y)
 
+    @abc.abstractclassmethod
     def transform(self, X, y=None, **kwargs):
         self.__estimator.transform(X, y)
 
@@ -31,6 +35,7 @@ class FeatureSelectionAlgorithm(BaseEstimator, TransformerMixin):
             setattr(self.__estimator, parameter, value)
         return self
 
+
 class mRMR(FeatureSelectionAlgorithm):
     def __init__(self, k=10, estimator=None):
         super().__init__(estimator)
@@ -38,6 +43,7 @@ class mRMR(FeatureSelectionAlgorithm):
         self._isFitted_ = False
 
     def fit(self, X: np.array, y: np.array, **kwargs):
+        verbose = kwargs['verbose'] if 'verbose' in kwargs else False
         features = [i for i in range(X.shape[1])]
         selectedFeatures = []
         freeFeatures = [i for i in features if i not in selectedFeatures]
@@ -45,7 +51,9 @@ class mRMR(FeatureSelectionAlgorithm):
         while len(selectedFeatures) != self.k:
             mrmr = MRMR(np.asarray(selectedFeatures), np.asarray(freeFeatures), X, y)
             mxPos = np.argmax(mrmr)
-            log.debug(f"mrmr {mrmr}, mxPos {mxPos}")
+            
+            if verbose:
+                log.debug(f"mrmr {mrmr}, mxPos {mxPos}")
 
             selectedFeatures.append(freeFeatures[mxPos])
             freeFeatures = [i for i in features if i not in selectedFeatures]
