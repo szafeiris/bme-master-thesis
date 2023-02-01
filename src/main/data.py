@@ -10,7 +10,6 @@ import nibabel as nib
 import SimpleITK as sitk
 import pandas as pd
 
-
 ## Logging setup
 from logging.config import dictConfig
 import logging
@@ -93,11 +92,25 @@ class NiftyReader(DataReader):
             log.exception(e)
             raise e
 
+class RadiomicReader:
+    def readCsv(self, path='') -> np.array:
+        log.debug('Read csv radiomic file')
+        try:
+            return pd.read_csv(path)
+        except Exception as e:
+            log.error(f'Could not read dicom file.')
+            log.exception(e)
+            raise e
+
 class DataService:
-    def __init__(self, dataReader: DataReader, dataConverter: NiftyConverter = NiftyConverter(), radiomicsExtractor = RadiomicExtractor()) -> None:
+    def __init__(self, dataReader: DataReader, 
+                       dataConverter: NiftyConverter = NiftyConverter(),
+                       radiomicsExtractor = RadiomicExtractor(),
+                       radiomicReader = RadiomicReader()) -> None:
         self.__dataReader = dataReader
         self.__dataConverter = dataConverter
         self.__radiomicsExtractor = radiomicsExtractor
+        self.__radiomicReader = radiomicReader
     
     def setDataReader(self, dataReader: DataReader):
         self.__dataReader = dataReader
@@ -105,6 +118,14 @@ class DataService:
     
     def setDataConverter(self, dataConverter: NiftyConverter):
         self.__dataConverter = dataConverter
+        return self
+    
+    def setRadiomicExtractor(self, radiomicExtractor: RadiomicExtractor):
+        self.__radiomicsExtractor = radiomicExtractor
+        return self
+
+    def setRadiomicReader(self, radiomicReader: RadiomicReader):
+        self.__radiomicReader = radiomicReader
         return self
     
     def read(self, path):
@@ -124,6 +145,25 @@ class DataService:
         
         return self.__dataReader.readSegmentation(path)
     
+    @abc.abstractmethod
+    def convertToNifty(self, inputPath, outputPath):
+        pass
+    
+    @abc.abstractmethod
+    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures = False):
+        pass
+
+    def readRadiomics(self, csvPath):
+        return self.__radiomicReader.readCsv(csvPath)
+
+
+class NsclcRadiogenomicsDataService(DataService):
+    def __init__(self, dataReader: DataReader = DicomReader(),
+                       dataConverter: NiftyConverter = NiftyConverter(),
+                       radiomicsExtractor=RadiomicExtractor(),
+                       radiomicReader=RadiomicReader()) -> None:
+        super().__init__(dataReader, dataConverter, radiomicsExtractor, radiomicReader)
+        
     def convertToNifty(self, inputPath, outputPath):
         patients = glob.glob(os.path.join(inputPath, '**\\**'))
         for patient in patients:
