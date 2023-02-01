@@ -161,7 +161,7 @@ class DataService:
                     csvData['Image'].append(s)
 
         log.info("Extracting radiomics features...")
-        radiomicFeatures = self.__radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures)
+        radiomicFeatures = self.__radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
         radiomicFeaturesDataframe = pd.DataFrame.from_records(radiomicFeatures)
         if outputCsvFile is not None:
             log.info('Saving radiomics file.')
