@@ -207,4 +207,4 @@ class NsclcRadiogenomicsDataService(DataService):
             log.info('Saving radiomics file.')
             radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
 
-        return radiomicFeatures
+        return radiomicFeaturesDataframe
