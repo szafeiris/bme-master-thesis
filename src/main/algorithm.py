@@ -19,6 +19,9 @@ class FeatureSelectionAlgorithm(BaseEstimator, TransformerMixin):
     def __init__(self, estimator=None):
         self.__estimator = estimator
 
+    def getName(self) -> str :
+        return self.__class__.__name__
+
     @abc.abstractclassmethod    
     def fit(self, X, y=None, **kwargs):
         self.__estimator.fit(X, y)
@@ -40,6 +43,8 @@ class mRMR(FeatureSelectionAlgorithm):
     def __init__(self, k=10, estimator=None):
         super().__init__(estimator)
         self.k = k
+        self._selectedFeatures = None
+        self._selectedFeaturesNames = None
         self._isFitted_ = False
 
     def fit(self, X: np.array, y: np.array, **kwargs):
@@ -79,12 +84,13 @@ class mRMR(FeatureSelectionAlgorithm):
         return X[:, self._selectedFeatures]
 
     def get_params(self, deep=True):
-        return {
-            'selected_features_': self._selectedFeatures,
-            'k': self.k,
-            'selected_feature_names_': self._selectedFeaturesNames if self._selectedFeaturesNames else '',
-        }
+        out = dict()
+        out['selected_features_'] = self._selectedFeatures
+        out['k'] = self.k
+        out['selected_feature_names_'] = self._selectedFeaturesNames if self._selectedFeaturesNames else ''
 
+        return out
+        
     def set_params(self, **parameters):
         for parameter, value in parameters.items():
             setattr(self, parameter, value)
