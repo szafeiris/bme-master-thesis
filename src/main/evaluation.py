@@ -2,6 +2,7 @@ from src.main.configurator import configurator as conf
 from src.main.data import *
 from src.main.algorithm import *
 
+from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
@@ -30,56 +31,69 @@ class EvaluationResult:
         return json.dumps(self.to_dict())
 
 
-class EvaluationContext:
-    def __init__(self, steps=[]) -> None:
-        self.__pipeline = Pipeline(steps)
-
-    def setSteps(self, steps):
-        self.__pipeline.steps = steps
-    
-    def resetPipeline(self):
-        self.__pipeline.steps = []
-    
-    def getPipelineParams(self):
-        return self.__pipeline.get_params(deep=True)
-    
-    def setPipelineParams(self, **parameters):
-        return self.__pipeline.set_params(**parameters)
-
-    def fit(self, X, y, **kwargs):
-        return self.__pipeline.fit(X, y, **kwargs)
-    
-    def predict(self, X, **kwargs):
-        return self.__pipeline.predict(X, **kwargs)
-
-    def score(self, X, y, **kwargs):
-        return self.__pipeline.score(X, y, **kwargs)
-
-
 class EvaluationSession:
     def __init__(self, **kwargs) -> None:
-        self.__evaluationContext = EvaluationContext()
-        self._folds = kwargs['folds'] if 'folds' in kwargs else 10
+        self._pipeline = Pipeline([])
     
     def __enter__(self):
+        self._pipeline.steps = []
+
         return self
 
     def __exit__(self, type, value, traceback):
-        pass
+        del self._pipeline
+
+        return
     
     def evaluate(self, X, y, **kwargs):
-        log.info('Evaluation starts.')
+        self._patientIds = kwargs['patientIds'] if 'patientIds' in kwargs else None
+        self._radiomicFeaturesNames = kwargs['radiomicFeaturesNames'] if 'radiomicFeaturesNames' in kwargs else None
+        
+        self._featureSelectionMethod = kwargs['method'] if 'method' in kwargs else None
+        self._featureSelectionSettings = kwargs['methodParams'] if 'methodParams' in kwargs else {}
+        self._model = kwargs['model'] if 'model' in kwargs else None
+        self._modelParams = kwargs['modelParams'] if 'modelParams' in kwargs else {}
+        
+        self._isStratifiedCV = kwargs['stratifiedCV'] if 'stratifiedCV' in kwargs else True
+        self._folds = kwargs['folds'] if 'folds' in kwargs else 10
+
+        self._cv = StratifiedKFold(n_splits=self._folds) if self._isStratifiedCV else KFold(n_splits=self._folds)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+
+        log.debug('Evaluation session starts.')
         log.debug(f"Execute {mRMR().getName()}")
-        self.__evaluationContext.setSteps([
+        self._pipeline.steps =[
                 ('fs', mRMR()),
-                ('model', SVC())
-            ])
-        self.__evaluationContext.fit(X, y)
-        log.debug(self.__evaluationContext.getPipelineParams())
-        log.debug(self.__evaluationContext.score(X, y))
+                ('model', SVC(kernel='linear'))
+            ]
+        
+        self._pipeline.fit(X_train, y_train)
+        log.debug(self._pipeline.get_params())
+        log.debug(self._pipeline.score(X_test, y_test))
 
 class Evaluator:
-    def evaluate(self, X, y, **kwargs):
+
+    def evaluate(self, X, y, **kwargs) -> EvaluationResult:
+        patientIds = kwargs['patientIds'] if 'patientIds' in kwargs else None
+        radiomicFeaturesNames = kwargs['radiomicFeaturesNames'] if 'radiomicFeaturesNames' in kwargs else None
+
+        experimentData = {
+            'method': 'mRMR',
+            'methodParams': {},
+            'model': 'SVM',
+            'modelParams': {},
+
+            'stratifiedCV': False
+        }
+
+        if patientIds:
+            experimentData['patientIds'] = patientIds
+
+        if radiomicFeaturesNames:
+            experimentData['radiomicFeaturesNames'] = radiomicFeaturesNames
+
         with EvaluationSession() as sess:
-            sess.evaluate(X, y, **kwargs)
+            evaluationResult = sess.evaluate(X, y, **experimentData)
+        
+        return evaluationResult
     
