@@ -5,6 +5,8 @@ from src.main.algorithm import *
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
+import json
+
 ## Logging setup
 from logging.config import dictConfig
 import logging
@@ -14,8 +16,19 @@ log = logging.getLogger()
 
 class EvaluationResult:
     def __init__(self) -> None:
-        self.name = ''    
-        self.result = {}
+        self._name = ''    
+        self._result = {}
+    
+    def to_dict(self):
+        out = dict()
+        out['name'] = self._name
+        out['result'] = self._result
+        
+        return dict
+    
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict())
+
 
 class EvaluationContext:
     def __init__(self, steps=[]) -> None:
