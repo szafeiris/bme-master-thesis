@@ -32,7 +32,8 @@ def runNsclcEvaluation():
     y = np.asarray([0, 0, 1, 1, 0, 0])
 
     evaluator = Evaluator()
-    evaluationResults = evaluator.evaluate(X, y, patientIds=patientIds, radiomicFeaturesNames=radiomicFeaturesNames)
+    args = { 'patientIds': patientIds, 'radiomicFeaturesNames': radiomicFeaturesNames}
+    evaluationResults = evaluator.evaluate(X, y, **args)
     log.debug(evaluationResults)
 
 
