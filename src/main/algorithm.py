@@ -3,6 +3,8 @@ from src.main.configurator import configurator as conf
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.exceptions import NotFittedError
 
+from sklearn.svm import SVC
+
 from ITMO_FS.filters.multivariate import MRMR
 
 import numpy as np
@@ -95,3 +97,25 @@ class mRMR(FeatureSelectionAlgorithm):
         for parameter, value in parameters.items():
             setattr(self, parameter, value)
         return self
+
+
+ALGORITHMS = {
+    'FEATURE_SELECTION_METHOD': {
+        'mRMR': {
+            'method': mRMR(),
+            'methodParams': {
+                'k': 15
+            }
+        },
+
+    },
+    'MODEL': {
+        'svm': {
+            'model': SVC(),
+            'modelParams': {
+                'kernel': 'rbf'
+            }
+        },
+
+    }
+}
