@@ -34,7 +34,8 @@ def runNsclcEvaluation():
     evaluator = Evaluator()
     args = { 'patientIds': patientIds, 'radiomicFeaturesNames': radiomicFeaturesNames}
     evaluationResults = evaluator.evaluate(X, y, **args)
-    log.debug(evaluationResults)
+    for er in evaluationResults:
+        log.debug(er)
 
 
 if __name__ == '__main__':
