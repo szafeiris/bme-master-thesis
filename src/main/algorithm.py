@@ -119,3 +119,35 @@ ALGORITHMS = {
 
     }
 }
+
+
+def decodeMethod(methodName: str, params={}, applyParams=True):
+    if not methodName in ALGORITHMS['FEATURE_SELECTION_METHOD'].keys():
+        raise ValueError(f'{methodName} does not exist in ALGORITHMS')
+    
+    methodParams = {
+        **ALGORITHMS['FEATURE_SELECTION_METHOD'][methodName]['methodParams'],
+        **params
+    }
+    method = ALGORITHMS['FEATURE_SELECTION_METHOD'][methodName]['method']
+    
+    if applyParams:
+        method.set_params(**methodParams)
+
+    return (method, methodParams)
+
+
+def decodeModel(modelName: str, params={}, applyParams=True):
+    if not modelName in ALGORITHMS['MODEL']:
+        raise ValueError(f'{modelName} does not exist in ALGORITHMS')
+    
+    modelParams = {
+        **ALGORITHMS['MODEL'][modelName]['modelParams'],
+        **params
+    }
+    model = ALGORITHMS['MODEL'][modelName]['model']
+    
+    if applyParams:
+        model.set_params(**modelParams)
+
+    return (model, modelParams)
