@@ -1,6 +1,6 @@
 from . import configurator as conf
 from .converter import NiftyConverter
-from .extractor import RadiomicExtractor
+from .extractor import RadiomicExtractor, MultiLabelRadiomicExtractor
 import abc
 import numpy as np
 import glob
@@ -160,7 +160,7 @@ class DataService:
 class NsclcRadiogenomicsDataService(DataService):
     def __init__(self, dataReader: DataReader = DicomReader(),
                        dataConverter: NiftyConverter = NiftyConverter(),
-                       radiomicsExtractor=RadiomicExtractor(),
+                       radiomicsExtractor=RadiomicExtractor(conf.NSCLC_PYRADIOMICS_PARAMS_FILE),
                        radiomicReader=RadiomicReader()) -> None:
         super().__init__(dataReader, dataConverter, radiomicsExtractor, radiomicReader)
         
@@ -201,6 +201,42 @@ class NsclcRadiogenomicsDataService(DataService):
                     csvData['Image'].append(s)
 
         log.info("Extracting radiomics features...")
+        radiomicFeatures = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
+        radiomicFeaturesDataframe = pd.DataFrame.from_records(radiomicFeatures)
+        if outputCsvFile is not None:
+            log.info('Saving radiomics file.')
+            radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
+
+        return radiomicFeaturesDataframe
+
+class PicaiRadiogenomicsDataService(DataService):
+    def __init__(self, dataReader: DataReader = DicomReader(),
+                       dataConverter: NiftyConverter = NiftyConverter(),
+                       radiomicsExtractor=MultiLabelRadiomicExtractor(conf.PICAI_PYRADIOMICS_PARAMS_FILE),
+                       radiomicReader=RadiomicReader()) -> None:
+        super().__init__(dataReader, dataConverter, radiomicsExtractor, radiomicReader)
+        
+    def convertToNifty(self, inputPath, outputPath):
+        pass
+           
+    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures = False):
+        csvData = {
+            'Image': [],
+            'Mask': [],
+            'Patient ID': []
+        }
+
+        log.info("Gathering image data...")
+        masks = glob.glob(os.path.join(os.path.join(imageFolder, 'masks'), '**'))
+        for mask in masks:
+            patientCode = mask.split('\\')[-1].replace('.nii.gz', '')
+            csvData['Patient ID'].append(patientCode)
+
+            csvData['Mask'].append(os.path.join(os.path.join(imageFolder, 'masks'), patientCode + '.nii.gz'))
+            csvData['Image'].append(os.path.join(os.path.join(imageFolder, 'images'), patientCode + '_t2w.nii.gz'))
+
+        log.info("Extracting radiomics features...")
+        
         radiomicFeatures = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
         radiomicFeaturesDataframe = pd.DataFrame.from_records(radiomicFeatures)
         if outputCsvFile is not None:
