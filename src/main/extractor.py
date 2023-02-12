@@ -63,7 +63,7 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
             mask_ori = sitk.ReadImage(data[1])
             mask_np = sitk.GetArrayFromImage(mask_ori)
             
-            mask_np[mask_np >= 1] = 1
+            mask_np[mask_np >= 2] = 1
             
             mask = sitk.GetImageFromArray(mask_np)
             mask.CopyInformation(mask_ori)

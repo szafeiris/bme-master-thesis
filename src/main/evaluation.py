@@ -154,7 +154,7 @@ class Evaluator:
 
             'enableCV': True,
             'stratifiedCV': True,
-            'folds': 2,
+            'folds': 10,
 
         }
 

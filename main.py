@@ -1,5 +1,5 @@
 from src.main.configurator import configurator as conf
-from src.main.data import NsclcRadiogenomicsDataService
+from src.main.data import *
 from src.main.evaluation import *
 
 import os
@@ -38,7 +38,7 @@ def runNsclcEvaluation():
         log.debug(er)
 
 def runPicaiEvaluation():    
-    dataService = PicaiRadiogenomicsDataService()
+    dataService = PicaiDataService()
 
     # Extract radiomics from images or read them
     if os.path.exists(conf.PICAI_RADIOMICS_FILE):

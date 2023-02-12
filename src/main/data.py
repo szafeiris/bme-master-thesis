@@ -22,6 +22,16 @@ class DataReader:
     def read(self, path='') -> np.array:
         pass
 
+    def readSegmentation(self, path=''):
+        log.debug('Read compact segmentation file')
+        try:
+            img = sitk.ReadImage(path)
+            return sitk.GetArrayFromImage(img)
+        except Exception as e:
+            log.error(f'Could not read compact file.')
+            log.exception(e)
+            raise e
+
     def readDirectory(self, path='') -> np.ndarray:
         if path[-1] != '*':
             path = os.path.join(path, '*')
@@ -68,16 +78,6 @@ class DicomReader(DataReader):
             return dcmimg.pixel_array
         except Exception as e:
             log.error(f'Could not read dicom file.')
-            log.exception(e)
-            raise e
-    
-    def readSegmentation(self, path=''):
-        log.debug('Read compact dicom segmentation file')
-        try:
-            dcmimg = sitk.ReadImage(path)
-            return sitk.GetArrayFromImage(dcmimg)
-        except Exception as e:
-            log.error(f'Could not read compact dicom file.')
             log.exception(e)
             raise e
 
@@ -140,9 +140,6 @@ class DataService:
         raise RuntimeError('there is nothing to read')
     
     def readSegmentation(self, path):
-        if not isinstance(self._dataReader, DicomReader):
-            raise RuntimeError('cannot read segmentation (DicomDataReader is needed)')
-        
         return self._dataReader.readSegmentation(path)
     
     @abc.abstractmethod
@@ -209,8 +206,8 @@ class NsclcRadiogenomicsDataService(DataService):
 
         return radiomicFeaturesDataframe
 
-class PicaiRadiogenomicsDataService(DataService):
-    def __init__(self, dataReader: DataReader = DicomReader(),
+class PicaiDataService(DataService):
+    def __init__(self, dataReader: DataReader = NiftyReader(),
                        dataConverter: NiftyConverter = NiftyConverter(),
                        radiomicsExtractor=MultiLabelRadiomicExtractor(conf.PICAI_PYRADIOMICS_PARAMS_FILE),
                        radiomicReader=RadiomicReader()) -> None:
@@ -244,3 +241,20 @@ class PicaiRadiogenomicsDataService(DataService):
             radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
 
         return radiomicFeaturesDataframe
+    
+    def getDatasetLabels(self, imageFolder):
+        if os.path.exists(os.path.join(imageFolder, 'labels.npy')):
+            log.info('Reading labels...')
+            return np.load(os.path.join(imageFolder, 'labels.npy'))
+
+        masks = glob.glob(os.path.join(os.path.join(imageFolder, 'masks'), '**'))
+        labels = []
+        for mask in masks:
+            m = self._dataReader.readSegmentation(mask)
+            unq = np.unique(m)
+            del m
+
+            labels.append(int(np.max(unq) > 2))
+
+        np.save(os.path.join(imageFolder, 'labels.npy'), np.asarray(labels))
+        return np.asarray(labels)

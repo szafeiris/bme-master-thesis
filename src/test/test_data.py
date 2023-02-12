@@ -44,8 +44,3 @@ def test_read_single_nifty():
 def test_dataService_segmentation_works_in_dcm():
     dataService = DataService(DicomReader())
     assert dataService.readSegmentation(sample_dicom_segmentation) is not None
-
-def test_dataService_segmentation_throws_error_in_non_dcm():
-    dataService = DataService(NiftyReader())
-    with pytest.raises(RuntimeError):
-        dataService.readSegmentation(sample_dicom_segmentation)
