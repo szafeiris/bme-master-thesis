@@ -47,11 +47,18 @@ def runPicaiEvaluation():
         radiomicFeatures = dataService.extractRadiomics(conf.PICAI_NIFTI_IMAGES_DIR, conf.PICAI_RADIOMICS_FILE)
     
     patientIds = radiomicFeatures.pop('Patient_Id').to_list()
+    labels = radiomicFeatures.pop('Label')
     radiomicFeaturesNames = radiomicFeatures.columns.to_list()
+    
     X = radiomicFeatures.to_numpy()
+    y = np.copy(labels)
+    log.debug(np.unique(y, return_counts=True))
+    y[y == 2] = 0   # 0: ISUP = 2,
+    y[y > 2] = 1    # 1: ISUP > 2
 
-    # Declare labels
-    y = np.random.choice([0, 1], 220, p=[0.5, 0.5])
+    u, uc = np.unique(y, return_counts=True)
+    log.debug(u)
+    log.debug(uc)
     
     evaluator = Evaluator()
     args = { 'patientIds': patientIds, 'radiomicFeaturesNames': radiomicFeaturesNames}
