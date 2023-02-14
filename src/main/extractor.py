@@ -53,29 +53,45 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
         bar = progressbar.ProgressBar(maxval = values.shape[0], widgets=widgets).start()
 
         radiomics = []
+        occurences = {}
         for i, data in enumerate(values):            
             radiomic = {}
             radiomic['Patient_Id'] = data[2]
             bar.update(i)
-            
+
+            # Load image            
             image = sitk.ReadImage(data[0])
 
-            mask_ori = sitk.ReadImage(data[1])
-            mask_np = sitk.GetArrayFromImage(mask_ori)
-            
-            mask_np[mask_np >= 2] = 1
-            
-            mask = sitk.GetImageFromArray(mask_np)
-            mask.CopyInformation(mask_ori)
-            mask.SetSpacing(mask_ori.GetSpacing())
-            mask.SetOrigin(mask_ori.GetOrigin())
-            mask.SetDirection(mask_ori.GetDirection())
+            # Load mask and convert it to numpy array
+            originalMask = sitk.ReadImage(data[1])
+            originalNumpyMask = sitk.GetArrayFromImage(originalMask)
+            originalNumpyMaskUnique = np.unique(originalNumpyMask[originalNumpyMask != 0])
 
-            result = extractor.execute(image, mask)
-            for key, value in six.iteritems(result):
-                if (not 'diagnostics_' in key) or keepDiagnosticsFeatures:
-                    radiomic[key] = value
-            radiomics.append(radiomic)
+            for label in originalNumpyMaskUnique:
+                if not str(int(label)) in occurences:
+                    occurences[str(int(label))] = 1
+                else:
+                    occurences[str(int(label))] += 1
+
+                radiomic['Label'] = label
+                npMask = np.copy(originalNumpyMask)
+                npMask[originalNumpyMask != label] = 0
+                npMask[originalNumpyMask == label] = 1
+                       
+                mask = sitk.GetImageFromArray(npMask)
+
+                # Copy all mask's attributes from original mask image
+                mask.CopyInformation(originalMask)
+                mask.SetSpacing(originalMask.GetSpacing())
+                mask.SetOrigin(originalMask.GetOrigin())
+                mask.SetDirection(originalMask.GetDirection())
+
+                result = extractor.execute(image, mask)
+                for key, value in six.iteritems(result):
+                    if (not 'diagnostics_' in key) or keepDiagnosticsFeatures:
+                        radiomic[key] = value
+                radiomics.append(radiomic)
         
         bar.finish()
+        log.debug(occurences)
         return pd.DataFrame.from_dict(radiomics)
