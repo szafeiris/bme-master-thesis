@@ -58,8 +58,7 @@ def runPicaiEvaluation():
     evaluator = Evaluator()
     args = { 'patientIds': patientIds, 'radiomicFeaturesNames': radiomicFeaturesNames}
     evaluationResults = evaluator.evaluate(X, y, **args)
-    for er in evaluationResults:
-        log.debug(er)
+    log.debug(evaluationResults[0].calculateMetrics(y))
 
 if __name__ == '__main__':
     # runNsclcEvaluation()
