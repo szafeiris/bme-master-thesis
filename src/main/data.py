@@ -198,8 +198,7 @@ class NsclcRadiogenomicsDataService(DataService):
                     csvData['Image'].append(s)
 
         log.info("Extracting radiomics features...")
-        radiomicFeatures = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
-        radiomicFeaturesDataframe = pd.DataFrame.from_records(radiomicFeatures)
+        radiomicFeaturesDataframe = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
         if outputCsvFile is not None:
             log.info('Saving radiomics file.')
             radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
@@ -234,27 +233,10 @@ class PicaiDataService(DataService):
 
         log.info("Extracting radiomics features...")
         
-        radiomicFeatures = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
-        radiomicFeaturesDataframe = pd.DataFrame.from_records(radiomicFeatures)
+        radiomicFeaturesDataframe = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
         if outputCsvFile is not None:
             log.info('Saving radiomics file.')
             radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
 
         return radiomicFeaturesDataframe
-    
-    def getDatasetLabels(self, imageFolder):
-        if os.path.exists(os.path.join(imageFolder, 'labels.npy')):
-            log.info('Reading labels...')
-            return np.load(os.path.join(imageFolder, 'labels.npy'))
-
-        masks = glob.glob(os.path.join(os.path.join(imageFolder, 'masks'), '**'))
-        labels = []
-        for mask in masks:
-            m = self._dataReader.readSegmentation(mask)
-            unq = np.unique(m)
-            del m
-
-            labels.append(int(np.max(unq) > 2))
-
-        np.save(os.path.join(imageFolder, 'labels.npy'), np.asarray(labels))
-        return np.asarray(labels)
+        

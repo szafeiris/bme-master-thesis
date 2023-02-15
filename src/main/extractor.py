@@ -45,7 +45,13 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
         self.__paramFile__ = paramFile
 
     def extractFromCsv(self, csvData, **kwargs):
-        extractor = featureextractor.RadiomicsFeatureExtractor(self.__paramFile__)
+        if self.__paramFile__ in None:
+            extractor = featureextractor.RadiomicsFeatureExtractor()
+            extractor.enableAllFeatures()
+            extractor.enableAllImageTypes()
+        else:
+            extractor = featureextractor.RadiomicsFeatureExtractor(self.__paramFile__)
+
         keepDiagnosticsFeatures = kwargs['keepDiagnosticsFeatures'] if 'keepDiagnosticsFeatures' in kwargs else False
         values = pd.DataFrame(csvData).values
 
@@ -53,10 +59,7 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
         bar = progressbar.ProgressBar(maxval = values.shape[0], widgets=widgets).start()
 
         radiomics = []
-        occurences = {}
         for i, data in enumerate(values):            
-            radiomic = {}
-            radiomic['Patient_Id'] = data[2]
             bar.update(i)
 
             # Load image            
@@ -68,12 +71,10 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
             originalNumpyMaskUnique = np.unique(originalNumpyMask[originalNumpyMask != 0])
 
             for label in originalNumpyMaskUnique:
-                if not str(int(label)) in occurences:
-                    occurences[str(int(label))] = 1
-                else:
-                    occurences[str(int(label))] += 1
-
+                radiomic = {}
+                radiomic['Patient_Id'] = data[2]
                 radiomic['Label'] = label
+
                 npMask = np.copy(originalNumpyMask)
                 npMask[originalNumpyMask != label] = 0
                 npMask[originalNumpyMask == label] = 1
@@ -93,5 +94,4 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
                 radiomics.append(radiomic)
         
         bar.finish()
-        log.debug(occurences)
         return pd.DataFrame.from_dict(radiomics)
