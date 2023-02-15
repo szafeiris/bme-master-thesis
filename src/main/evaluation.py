@@ -2,11 +2,12 @@ from src.main.configurator import configurator as conf
 from src.main.data import *
 from src.main.algorithm import *
 
+from sklearn.metrics import *
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
-from sklearn.svm import SVC
 
-import json
+import progressbar
+
 
 ## Logging setup
 from logging.config import dictConfig
@@ -17,18 +18,50 @@ log = logging.getLogger()
 
 class EvaluationResult:
     def __init__(self) -> None:
-        self._name = ''    
-        self._result = dict()
-    
-    def to_dict(self):
-        out = dict()
-        out['name'] = self._name
-        out['result'] = self._result
-        
-        return dict
+        self.name = ''
+        self.method = {}
+        self.model = {}
+        self.results = {
+            'trainIndexes': [],
+            'testIndexes': [],
+            'trainPredictions': [],
+            'testPredictions': [],
+        }
+        self.pipelineParams = {}
+        self.fold = None
     
     def __str__(self) -> str:
-        return f'name: {self._name}, results: {self._result}'
+        sufix = f'fold: {self.fold}' if self.fold else '' 
+        return sufix + f'name: {self.name}, method: {self.method}, model: {self.model}'
+    
+    def calculateMetrics(self, labels) -> dict:
+        metrics = {
+            'trainMetrics': {
+                'accuracy': accuracy_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),
+	            'balanced_accuracy': balanced_accuracy_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),
+	            'f1': f1_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),
+	            'precision': precision_score(labels[self.results['trainIndexes']], self.results['trainPredictions']), # Sensitivity
+	            'recall': recall_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),       # Specificity
+	            'roc_auc': roc_auc_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),
+            },
+            'testMetrics': {
+                'accuracy': accuracy_score(labels[self.results['testIndexes']], self.results['testPredictions']),
+                'balanced_accuracy': balanced_accuracy_score(labels[self.results['testIndexes']], self.results['testPredictions']),
+                'f1': f1_score(labels[self.results['testIndexes']], self.results['testPredictions']),
+                'precision': precision_score(labels[self.results['testIndexes']], self.results['testPredictions']), # Sensitivity
+                'recall': recall_score(labels[self.results['testIndexes']], self.results['testPredictions']),       # Specificity
+                'roc_auc': roc_auc_score(labels[self.results['testIndexes']], self.results['testPredictions']),
+                
+                'confusion_matrix': confusion_matrix(labels[self.results['testIndexes']], self.results['testPredictions']),
+            }
+        }
+
+        # FPR, TPR, thresholds = roc_curve(labels[self.results['testIndexes']], self.results['testPredictions'], pos_label=1)
+        # metrics['testMetrics']['FPR'] = FPR
+        # metrics['testMetrics']['TPR'] = TPR
+        # metrics['testMetrics']['thresholds'] = thresholds
+
+        return metrics
 
 
 class EvaluationSession:
@@ -48,6 +81,7 @@ class EvaluationSession:
     def evaluate(self, X, y, **kwargs):
         self._patientIds = kwargs['patientIds'] if 'patientIds' in kwargs else None
         self._radiomicFeaturesNames = kwargs['radiomicFeaturesNames'] if 'radiomicFeaturesNames' in kwargs else None
+        self._extraSteps = kwargs['extraSteps'] if 'extraSteps' in kwargs else None
         
         # Get feature selection method 
         if not 'method' in kwargs:
@@ -76,86 +110,96 @@ class EvaluationSession:
         self._randomState = kwargs['randomState'] if 'randomState' in kwargs else 42
         self._testSize = kwargs['testSize'] if 'testSize' in kwargs else 1/3
 
-        log.debug('Evaluation session starts.')
-        log.debug(f"Execute {self.method[0].__class__.__name__} and {self.model[0].__class__.__name__}")
+        self._methodName = self.method[0].__name__()
+        self._modelName = self.model[0].__class__.__name__
+
+        log.info('Evaluation session starts.')
+        log.info(f"Execute {self._methodName} and {self._modelName}")
 
         evaluationResults = []
         if self._enableCV:
             self.cv = StratifiedKFold(n_splits=self._folds) if self._isStratifiedCV else KFold(n_splits=self._folds)
+
+            widgets=['[', progressbar.Timer(), '] ', progressbar.Bar(marker='_'),  progressbar.FormatLabel(' Fold %(value)d out of %(max)d - '), progressbar.AdaptiveETA()]
+            bar = progressbar.ProgressBar(maxval = self._folds, widgets=widgets).start()
+
             for i, (train_index, test_index) in enumerate(self.cv.split(X, y)):
-                X_train, X_test = X[train_index], X[test_index]
-                y_train, y_test = y[train_index], y[test_index]
+                self._train_index, self._test_index = train_index, test_index
+                self._X_train, self._X_test = X[train_index], X[test_index]
+                self._y_train, self._y_test = y[train_index], y[test_index]
 
                 pipeline = self.__getPipeline()
-                pipeline.fit(X_train, y_train)
-                
-                params = pipeline.get_params()
-                trainScore = pipeline.score(X_train, y_train)
-                testScore = pipeline.score(X_test, y_test)
-                log.debug(f'Fold: {i}')
-                log.debug(f'params: {params}')
-                log.debug(f'trainScore: {trainScore}')
-                log.debug(f'testScore: {testScore}')
-
-                er = EvaluationResult()
-                er._name = f"{self.method[0].__class__.__name__}_{self.model[0].__class__.__name__}_cv"
-                er._result = {
-                    'fold': i,
-                    'params': params,
-                    'trainScore': trainScore,
-                    'testScore': testScore,
-                }
-                evaluationResults.append(er)
-
+                if self._radiomicFeaturesNames:
+                    pipeline.fit(self._X_train, self._y_train, fs__featureNames=self._radiomicFeaturesNames)
+                else:
+                    pipeline.fit(self._X_train, self._y_train)
+                evaluationResult = self._createEvaluationResult(pipeline, fold=i)
+                evaluationResults.append(evaluationResult)
+                bar.update(i)
+            
+            bar.finish()
         else:
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=self._testSize, random_state=self._randomState)
+            self._X_train, self._X_test, self._y_train, self._y_test = train_test_split(X, y, test_size=self._testSize, random_state=self._randomState)           
+            self._train_index, self._test_index = np.where(X == self._X_train), np.where(X == self._X_test)
 
             pipeline = self.__getPipeline()
-            pipeline.fit(X_train, y_train)
+            if self._radiomicFeaturesNames:
+                pipeline.fit(self._X_train, self._y_train, fs__featureNames=self._radiomicFeaturesNames)
+            else:
+                pipeline.fit(self._X_train, self._y_train)
+            evaluationResult = self._createEvaluationResult(pipeline)
+            evaluationResults.append(evaluationResult)
 
-            params = pipeline.get_params()
-            trainScore = pipeline.score(X_train, y_train)
-            testScore = pipeline.score(X_test, y_test)
-            log.debug(f'params: {params}')
-            log.debug(f'trainScore: {trainScore}')
-            log.debug(f'testScore: {testScore}')
-
-            er = EvaluationResult()
-            er._name = f"{self.method[0].__class__.__name__}_{self.model[0].__class__.__name__}"
-            er._result = {
-                'params': params,
-                'trainScore': trainScore,
-                'testScore': testScore,
-            }
-
-            evaluationResults.append(er)
-        
+        log.info('Evaluation session teminated.')
         return evaluationResults
     
     def __getPipeline(self):
-        self._pipeline.steps = [
-            ('fs', self.method[0]),
-            ('model', self.model[0])
-        ]
+        pipelineSteps = []
 
+        if self._extraSteps:
+            for eStep in self._extraSteps:
+                pipelineSteps.append(eStep)
+        
+        pipelineSteps.append(('fs', self.method[0]))
+        pipelineSteps.append(('model', self.model[0]))
+        self._pipeline.steps = pipelineSteps
         return self._pipeline
+    
+    def _createEvaluationResult(self, pipeline: Pipeline, fold=None) -> EvaluationResult:
+        evaluationResult = EvaluationResult()
+        evaluationResult.name = f'{self._methodName}_{self._modelName}'
+        evaluationResult.method = self.method[0].get_params()
+        evaluationResult.model = self.model[0].get_params()
+        evaluationResult.results = {
+            'trainIndexes': np.asarray([i for i in self._train_index]),
+            'testIndexes': np.asarray([i for i in self._test_index]),
+            'trainPredictions': np.asarray([i for i in pipeline.predict(self._X_train)]),
+            'testPredictions': np.asarray([i for i in pipeline.predict(self._X_test)]),
+        }
+
+        evaluationResult.pipelineParams = {**pipeline.get_params()}
+        evaluationResult.fold = fold
+
+        return evaluationResult
 
 class Evaluator:
-
     def evaluate(self, X, y, **kwargs) -> EvaluationResult:
         patientIds = kwargs['patientIds'] if 'patientIds' in kwargs else None
         radiomicFeaturesNames = kwargs['radiomicFeaturesNames'] if 'radiomicFeaturesNames' in kwargs else None
 
         experimentData = {
-            'method': 'mRMR',
-            'methodParams': {},
+            'method': 'spearman',
+            'methodParams': {
+                'nFeatures': 1100
+            },
             'model': 'svm',
-            'modelParams': {},
+            'modelParams': {
+                'kernel': 'rbf'
+            },
 
             'enableCV': True,
             'stratifiedCV': True,
             'folds': 10,
-
         }
 
         if patientIds:
