@@ -45,7 +45,7 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
         self.__paramFile__ = paramFile
 
     def extractFromCsv(self, csvData, **kwargs):
-        if self.__paramFile__ in None:
+        if self.__paramFile__ is None:
             extractor = featureextractor.RadiomicsFeatureExtractor()
             extractor.enableAllFeatures()
             extractor.enableAllImageTypes()
