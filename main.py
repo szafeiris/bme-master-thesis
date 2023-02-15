@@ -60,6 +60,50 @@ def runPicaiEvaluation():
     evaluationResults = evaluator.evaluate(X, y, **args)
     log.debug(evaluationResults[0].calculateMetrics(y))
 
+from glob import glob as g
+def computePicaiBinWidth():
+    ranges = []
+
+    if not os.path.exists('ranges.npy'):
+        dataService = PicaiDataService()
+        imagePaths = g(os.path.join(conf.PICAI_NIFTI_IMAGES_DIR, 'images/**'))
+        for imagePath in imagePaths:
+            print(imagePath)
+            image = dataService.read(imagePath)
+            ranges.append(int(np.max(image) - np.min(image)))
+            del image
+
+        ranges = np.asarray(ranges)
+        np.save('ranges.npy', ranges)
+    else:
+        ranges = np.load('ranges.npy')
+
+    meanRange = np.mean(ranges)
+
+    binValues = []
+    binWidthValues = []
+
+    bins = 17
+    binWidth = 1
+    while bins > 16:
+        bins = meanRange/binWidth
+        if 16 <= bins <= 128:
+            print(f'Bins: {int(bins)}, BinWidth: {binWidth}')
+            binValues.append(int(bins))
+            binWidthValues.append(binWidth)
+        
+        binWidth += 1
+
+    binValues = np.asarray(list(binValues))
+    binWidthValues = np.asarray(list(binWidthValues))
+
+    print(binValues.shape)
+    print(binWidthValues.shape)
+
+    print(np.median(binValues))
+    print(np.median(binWidthValues))
+
 if __name__ == '__main__':
     # runNsclcEvaluation()
+    # computePicaiBinWidth()
     runPicaiEvaluation()
