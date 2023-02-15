@@ -133,9 +133,9 @@ class DataService:
             raise AttributeError('`path` should be a string')
 
         if os.path.isfile(path):
-            return self.dataReader.read(path)
+            return self._dataReader.read(path)
         elif os.path.isdir(path):
-            return self.dataReader.readDirectory(path)
+            return self._dataReader.readDirectory(path)
         
         raise RuntimeError('there is nothing to read')
     
