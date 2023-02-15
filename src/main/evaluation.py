@@ -3,7 +3,7 @@ from src.main.data import *
 from src.main.algorithm import *
 
 from sklearn.metrics import *
-from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
+from sklearn.model_selection import *
 from sklearn.pipeline import Pipeline
 
 import progressbar
@@ -104,9 +104,10 @@ class EvaluationSession:
             del kwargs['modelParams']
         
         self._isStratifiedCV = kwargs['stratifiedCV'] if 'stratifiedCV' in kwargs else True
-        self._folds = kwargs['folds'] if 'folds' in kwargs else 10
+        self._folds = kwargs['crossValidationNFolds'] if 'crossValidationNFolds' in kwargs else 10
         self._splitTest = kwargs['splitTest'] if 'splitTest' in kwargs else True
-        self._enableCV = kwargs['enableCV'] if 'enableCV' in kwargs else True
+        self._crossValidation = kwargs['crossValidation'] if 'crossValidation' in kwargs else None
+        self._crossValidationShuffle = kwargs['crossValidationShuffle'] if 'crossValidationShuffle' in kwargs else False
         self._randomState = kwargs['randomState'] if 'randomState' in kwargs else 42
         self._testSize = kwargs['testSize'] if 'testSize' in kwargs else 1/3
 
@@ -117,13 +118,15 @@ class EvaluationSession:
         log.info(f"Execute {self._methodName} and {self._modelName}")
 
         evaluationResults = []
-        if self._enableCV:
-            self.cv = StratifiedKFold(n_splits=self._folds) if self._isStratifiedCV else KFold(n_splits=self._folds)
+        if not self._crossValidation is None:
+            self._crossValidation.n_splits = self._folds
+            self._crossValidation.random_state = self._randomState
+            self._crossValidation.shuffle = self._crossValidationShuffle
 
             widgets=['[', progressbar.Timer(), '] ', progressbar.Bar(marker='_'),  progressbar.FormatLabel(' Fold %(value)d out of %(max)d - '), progressbar.AdaptiveETA()]
             bar = progressbar.ProgressBar(maxval = self._folds, widgets=widgets).start()
 
-            for i, (train_index, test_index) in enumerate(self.cv.split(X, y)):
+            for i, (train_index, test_index) in enumerate(self._crossValidation.split(X, y)):
                 self._train_index, self._test_index = train_index, test_index
                 self._X_train, self._X_test = X[train_index], X[test_index]
                 self._y_train, self._y_test = y[train_index], y[test_index]
@@ -139,8 +142,14 @@ class EvaluationSession:
             
             bar.finish()
         else:
-            self._X_train, self._X_test, self._y_train, self._y_test = train_test_split(X, y, test_size=self._testSize, random_state=self._randomState)           
-            self._train_index, self._test_index = np.where(X == self._X_train), np.where(X == self._X_test)
+            shuffleSplit = ShuffleSplit(n_splits=1, test_size=self._testSize, random_state=self._randomState)
+            shuffleSplit.get_n_splits(X, y)
+            self._train_index, self._test_index = next(shuffleSplit.split(X, y)) 
+            self._X_train, self._X_test = X[self._train_index], X[self._test_index] 
+            self._y_train, self._y_test = y[self._train_index], y[self._test_index]
+
+            log.debug(self._train_index.shape)
+            log.debug(self._test_index.shape)
 
             pipeline = self.__getPipeline()
             if self._radiomicFeaturesNames:
@@ -197,9 +206,10 @@ class Evaluator:
                 'kernel': 'rbf'
             },
 
-            'enableCV': True,
-            'stratifiedCV': True,
-            'folds': 10,
+            'crossValidation': StratifiedKFold(),
+            'crossValidationNFolds': 10,
+            # 'testSize': 1/3,
+            'testSize': 0.35,
         }
 
         if patientIds:
