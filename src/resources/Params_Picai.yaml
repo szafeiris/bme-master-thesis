@@ -5,7 +5,7 @@
 # When adapting and using these settings for an analysis, be sure to add the PyRadiomics version used to allow you to
 # easily recreate your extraction at a later timepoint:
 
-# #############################  Extracted using PyRadiomics version: <version>  ######################################
+# #############################  Extracted using PyRadiomics version: v3.0.1  ######################################
 
 imageType:
   Original: {}
