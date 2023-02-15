@@ -59,7 +59,7 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
         bar = progressbar.ProgressBar(maxval = values.shape[0], widgets=widgets).start()
 
         radiomics = []
-        for i, data in enumerate(values):            
+        for i, data in enumerate(values):
             bar.update(i)
 
             # Load image            
@@ -75,19 +75,7 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
                 radiomic['Patient_Id'] = data[2]
                 radiomic['Label'] = label
 
-                npMask = np.copy(originalNumpyMask)
-                npMask[originalNumpyMask != label] = 0
-                npMask[originalNumpyMask == label] = 1
-                       
-                mask = sitk.GetImageFromArray(npMask)
-
-                # Copy all mask's attributes from original mask image
-                mask.CopyInformation(originalMask)
-                mask.SetSpacing(originalMask.GetSpacing())
-                mask.SetOrigin(originalMask.GetOrigin())
-                mask.SetDirection(originalMask.GetDirection())
-
-                result = extractor.execute(image, mask)
+                result = extractor.execute(image, originalMask, label=int(label))
                 for key, value in six.iteritems(result):
                     if (not 'diagnostics_' in key) or keepDiagnosticsFeatures:
                         radiomic[key] = value
