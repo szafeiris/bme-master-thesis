@@ -4,9 +4,14 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.exceptions import NotFittedError
 
 from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 
 from ITMO_FS.filters.univariate import select_k_best, UnivariateFilter, spearman_corr, pearson_corr
 from ITMO_FS.filters.multivariate import MultivariateFilter
+
+from skrebate import ReliefF, SURF, SURFstar, MultiSURF, MultiSURFstar, TuRF
+
+from boruta.boruta_py import BorutaPy
 
 import numpy as np
 import abc
@@ -139,16 +144,145 @@ class UnivariateIFsAlgorithm(ItmoFsAlgorithm):
         except KeyError:
             raise KeyError(f'method `{self._methodName}` is not in ITMO_UV_METHODS')
 
+class BorutaFsAlgorithm(FeatureSelectionAlgorithm):
+    def __init__(self, estimator=None, n_estimators=1000, perc=100, alpha=0.05, two_step=True, max_iter=100, random_state=None, verbose=0):
+        self.estimator = estimator
+        self.n_estimators = n_estimators
+        self.perc = perc
+        self.alpha = alpha
+        self.two_step = two_step
+        self.max_iter = max_iter
+        self.random_state = random_state
+        self.verbose = verbose
+        
+        self._method = BorutaPy(self.estimator, self.n_estimators, self.perc, self.alpha, self.two_step, self.max_iter, self.random_state, self.verbose)
+        self._cleaning()
+
+    def fit(self, X, y=None, **kwargs):
+        self._cleaning()
+        self._method.fit(X, y)
+        self.selectedFeatures = self._method.support_
+        self.selectedWeakFeatures = self._method.support_weak_
+        self.featureRanking = self._method.ranking_
+        return self
+
+    def transform(self, X, y=None, **kwargs):
+        return self._method.transform(X)
+
+    def get_params(self, deep=True):
+        return {
+            'estimator': self.estimator.get_params() if deep else type(self.estimator),
+            'n_estimators': self.n_estimators,
+            'perc': self.perc,
+            'alpha': self.alpha,
+            'two_step': self.two_step,
+            'max_iter': self.max_iter,
+            'random_state': self.random_state,
+            'verbose': self.verbose,
+            'selectedFeatures': self.selectedFeatures if hasattr(self, 'selectedFeatures') else [],
+            'selectedWeakFeatures': self.selectedWeakFeatures if hasattr(self, 'selectedWeakFeatures') else [],
+            'featureRanking': self.featureRanking if hasattr(self, 'featureRanking') else [],
+        }
+
+    def set_params(self, **parameters):
+        self._cleaning()
+        
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+
+        del self._method
+        self._method = BorutaPy(self.estimator, self.n_estimators, self.perc, self.alpha, self.two_step, self.max_iter, self.random_state, self.verbose)
+        return self
+    
+    def _cleaning(self):
+        if hasattr(self, 'selectedFeatures'):
+            del self.selectedFeatures
+        
+        if hasattr(self, 'selectedWeakFeatures'):
+            del self.selectedWeakFeatures
+        
+        if hasattr(self, 'featureRanking'):
+            del self.featureRanking
+    
+    def __name__(self):
+        return f"boruta_"
+    
+    def __dict__(self):
+        return self.get_params()
 
 ALGORITHMS = {
     'FS_METHODS': {
+        'relieff': {
+            'method': ReliefF(),
+            'methodParams': {
+                'n_neighbors': 100,
+                'n_features_to_select': 2,
+                'discrete_threshold': 10,
+                'n_jobs': -1
+            }
+        },
+        'surf': {
+            'method': SURF(),
+            'methodParams': {
+                'n_features_to_select': 2,
+                'discrete_threshold': 10,
+                'n_jobs': -1
+            }
+        },
+        'surfstar': {
+            'method': SURFstar(),
+            'methodParams': {
+                'n_features_to_select': 2,
+                'discrete_threshold': 10,
+                'n_jobs': -1
+            }
+        },
+        'multisurf': {
+            'method': MultiSURF(),
+            'methodParams': {
+                'n_features_to_select': 2,
+                'discrete_threshold': 10,
+                'n_jobs': -1
+            }
+        },
+        'multisurfstar': {
+            'method': MultiSURFstar(),
+            'methodParams': {
+                'n_features_to_select': 2,
+                'discrete_threshold': 10,
+                'n_jobs': -1
+            }
+        },
+        'turf': {
+            'method': TuRF(core_algorithm='relieff'),
+            'methodParams': {
+                'core_algorithm': 'relieff',
+                'n_features_to_select': 2,
+                'discrete_threshold': 10,
+                'n_jobs': -1
+            }
+        },
+        
+        'boruta': {
+            'method': BorutaFsAlgorithm(estimator=RandomForestClassifier(class_weight='balanced', max_depth=5)),
+            'methodParams': {
+                'estimator': RandomForestClassifier(class_weight='balanced', max_depth=5),
+                'n_estimators': 1000,
+                'perc': 100,
+                'alpha': 0.05,
+                'two_step': True,
+                'max_iter': 100,
+                'random_state': None,
+                'verbose': 0,
+            }
+        },
 
     },
     'MODELS': {
         'svm': {
             'model': SVC(),
             'modelParams': {
-                'kernel': 'rbf'
+                'kernel': 'linear'
             }
         },
 
