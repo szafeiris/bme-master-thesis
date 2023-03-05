@@ -36,7 +36,7 @@ class EvaluationResult:
         return sufix + f'name: {self.name}, method: {self.method}, model: {self.model}, results: {self.results}, metrics: {self.metrics}'
     
     def dict(self):
-        return {
+        dictionary = {
             "name": self.name,
             "method": self.method,
             "model": self.model,
@@ -47,8 +47,14 @@ class EvaluationResult:
                 'testPredictions': [int(a) for a in self.results['testPredictions']],
             },
             "metrics": self.metrics,
-            "fold": self.fold if self.fold else None
         }
+
+        if not self.fold is None:
+            return {
+                f"{self.fold}": dictionary
+            }
+
+        return dictionary
     
     def calculateMetrics(self, labels) -> dict:
         metrics = {
@@ -147,7 +153,7 @@ class EvaluationSession:
                 self._y_train, self._y_test = y[train_index], y[test_index]
 
                 evaluationResults.append(
-                    self.__executePipeline(fold=i)
+                    self.__executePipeline(fold = i + 1)
                 )
 
                 bar.update(i)

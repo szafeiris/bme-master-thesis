@@ -69,8 +69,8 @@ def runPicaiEvaluation():
                 'kernel': 'linear'
             },
 
-            'crossValidation': StratifiedKFold(),
-            'crossValidationNFolds': 10,
+            # 'crossValidation': StratifiedKFold(),
+            'crossValidationNFolds': 3,
             # 'testSize': 1/3,
             'testSize': 0.35,
         }
@@ -81,21 +81,25 @@ def runPicaiEvaluation():
         'experimentData': experimentData
     }
     evaluationResults = evaluator.evaluate(X, y, **args)
+    
+    evaluationResultsDictionary = []
     for evaluationResult in evaluationResults:
         evaluationResult.calculateMetrics(y)
         evaluationResultDictionary = evaluationResult.dict()
-        jsonEvaluationResult = json.dumps(evaluationResultDictionary)
-        log.debug('=====================================')
-        log.debug(jsonEvaluationResult)
-        log.debug('=====================================')
-        foldText = f"_{evaluationResultDictionary['fold']}_" if evaluationResultDictionary['fold'] else ''
-        filename = f"{evaluationResultDictionary['name']}{foldText}.json"
-        json.dump(
-            evaluationResultDictionary,
-            open(os.path.join(conf.RESULTS_DIR, filename), 'w'),
-            indent = '\t',
-            sort_keys = True
-        )
+        evaluationResultsDictionary.append(evaluationResultDictionary)
+
+    log.debug(evaluationResultsDictionary)
+    filename = f"{evaluationResultsDictionary[0]['1']['name']}_CV.json" if len(evaluationResultsDictionary) > 1 else f"{evaluationResultsDictionary[0]['name']}.json"
+    json.dump(
+        evaluationResultsDictionary,
+        open(os.path.join(conf.RESULTS_DIR, filename), 'w'),
+        indent = '\t',
+        sort_keys = True
+    )
+ 
+    log.debug('=====================================')
+    log.debug(evaluationResultsDictionary)
+    log.debug('=====================================')
 
 from glob import glob as g
 def computePicaiBinWidth():
