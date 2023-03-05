@@ -56,9 +56,46 @@ def runPicaiEvaluation():
     y[y > 2] = 1    # 1: ISUP > 2
     
     evaluator = Evaluator()
-    args = { 'patientIds': patientIds, 'radiomicFeaturesNames': radiomicFeaturesNames}
+    experimentData = {
+            # 'method': 'boruta',
+            # 'methodParams': {},
+            'method': 'pearson',
+            'methodParams': {
+                'nFeatures': 2
+                # 'n_features_to_select': 3
+            },
+            'model': 'svm',
+            'modelParams': {
+                'kernel': 'linear'
+            },
+
+            'crossValidation': StratifiedKFold(),
+            'crossValidationNFolds': 10,
+            # 'testSize': 1/3,
+            'testSize': 0.35,
+        }
+    
+    args = { 
+        'patientIds': patientIds,
+        'radiomicFeaturesNames': radiomicFeaturesNames,
+        'experimentData': experimentData
+    }
     evaluationResults = evaluator.evaluate(X, y, **args)
-    log.debug(evaluationResults[0].calculateMetrics(y))
+    for evaluationResult in evaluationResults:
+        evaluationResult.calculateMetrics(y)
+        evaluationResultDictionary = evaluationResult.dict()
+        jsonEvaluationResult = json.dumps(evaluationResultDictionary)
+        log.debug('=====================================')
+        log.debug(jsonEvaluationResult)
+        log.debug('=====================================')
+        foldText = f"_{evaluationResultDictionary['fold']}_" if evaluationResultDictionary['fold'] else ''
+        filename = f"{evaluationResultDictionary['name']}{foldText}.json"
+        json.dump(
+            evaluationResultDictionary,
+            open(os.path.join(conf.RESULTS_DIR, filename), 'w'),
+            indent = '\t',
+            sort_keys = True
+        )
 
 from glob import glob as g
 def computePicaiBinWidth():

@@ -61,7 +61,7 @@ class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
         self._cleaning()
 
         self._method.fit(X, y)
-        self.selectedFeatures = self._method.selected_features
+        self.selectedFeatures = [int(a) for a in self._method.selected_features]
         self._isFitted = True
 
         if 'featureNames' in kwargs:
@@ -171,17 +171,15 @@ class BorutaFsAlgorithm(FeatureSelectionAlgorithm):
 
     def get_params(self, deep=True):
         return {
-            'estimator': self.estimator.get_params() if deep else type(self.estimator),
+            # 'estimator': self.estimator.get_params() if deep else type(self.estimator),
             'n_estimators': self.n_estimators,
             'perc': self.perc,
             'alpha': self.alpha,
             'two_step': self.two_step,
             'max_iter': self.max_iter,
-            'random_state': self.random_state,
-            'verbose': self.verbose,
-            'selectedFeatures': self.selectedFeatures if hasattr(self, 'selectedFeatures') else [],
-            'selectedWeakFeatures': self.selectedWeakFeatures if hasattr(self, 'selectedWeakFeatures') else [],
-            'featureRanking': self.featureRanking if hasattr(self, 'featureRanking') else [],
+            'selectedFeatures': [int(a) for a in np.arange(self.selectedFeatures.shape[0])[self.selectedFeatures]] if hasattr(self, 'selectedFeatures') else [],
+            'selectedWeakFeatures': [int(a) for a in np.arange(self.selectedWeakFeatures.shape[0])[self.selectedWeakFeatures]] if hasattr(self, 'selectedWeakFeatures') else [],
+            'featureRanking': [int(a) for a in self.featureRanking] if hasattr(self, 'featureRanking') else [],
         }
 
     def set_params(self, **parameters):
@@ -267,13 +265,13 @@ ALGORITHMS = {
             'method': BorutaFsAlgorithm(estimator=RandomForestClassifier(class_weight='balanced', max_depth=5)),
             'methodParams': {
                 'estimator': RandomForestClassifier(class_weight='balanced', max_depth=5),
-                'n_estimators': 1000,
-                'perc': 100,
+                'n_estimators': 'auto',
+                'perc': 50,
                 'alpha': 0.05,
                 'two_step': True,
-                'max_iter': 100,
-                'random_state': None,
-                'verbose': 0,
+                'max_iter': 20,
+                'random_state': 42,
+                'verbose': 2,
             }
         },
 

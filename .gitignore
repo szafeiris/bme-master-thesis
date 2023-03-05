@@ -203,6 +203,5 @@ poetry.toml
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode
 
 # Custom ignores
-data/images/*
-data/radiomics/*
+data/*
 /logs/

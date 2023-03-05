@@ -5,9 +5,10 @@ from src.main.algorithm import *
 from sklearn.metrics import *
 from sklearn.model_selection import *
 from sklearn.pipeline import Pipeline
+from sklearn.exceptions import UndefinedMetricWarning
 
 import progressbar
-
+import json
 
 ## Logging setup
 from logging.config import dictConfig
@@ -31,28 +32,43 @@ class EvaluationResult:
         self.fold = None
     
     def __str__(self) -> str:
-        sufix = f'fold: {self.fold}' if self.fold else '' 
-        return sufix + f'name: {self.name}, method: {self.method}, model: {self.model}'
+        sufix = f'fold: {self.fold}, ' if self.fold else '' 
+        return sufix + f'name: {self.name}, method: {self.method}, model: {self.model}, results: {self.results}, metrics: {self.metrics}'
+    
+    def dict(self):
+        return {
+            "name": self.name,
+            "method": self.method,
+            "model": self.model,
+            "results": {
+                'trainIndexes': [int(a) for a in self.results['trainIndexes']],
+                'testIndexes': [int(a) for a in self.results['testIndexes']],
+                'trainPredictions': [int(a) for a in self.results['trainPredictions']],
+                'testPredictions': [int(a) for a in self.results['testPredictions']],
+            },
+            "metrics": self.metrics,
+            "fold": self.fold if self.fold else None
+        }
     
     def calculateMetrics(self, labels) -> dict:
         metrics = {
             'trainMetrics': {
-                'accuracy': accuracy_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),
-	            'balanced_accuracy': balanced_accuracy_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),
-	            'f1': f1_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),
-	            'precision': precision_score(labels[self.results['trainIndexes']], self.results['trainPredictions']), # Sensitivity
-	            'recall': recall_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),       # Specificity
-	            'roc_auc': roc_auc_score(labels[self.results['trainIndexes']], self.results['trainPredictions']),
+                'accuracy': float(accuracy_score(labels[self.results['trainIndexes']], self.results['trainPredictions'])),
+	            'balanced_accuracy': float(balanced_accuracy_score(labels[self.results['trainIndexes']], self.results['trainPredictions'])),
+	            'f1': float(f1_score(labels[self.results['trainIndexes']], self.results['trainPredictions'])),
+	            'precision': float(precision_score(labels[self.results['trainIndexes']], self.results['trainPredictions'])), # Sensitivity
+	            'recall': float(recall_score(labels[self.results['trainIndexes']], self.results['trainPredictions'])),       # Specificity
+	            'roc_auc': float(roc_auc_score(labels[self.results['trainIndexes']], self.results['trainPredictions'])),
+                'confusion_matrix': [int(a) for a in confusion_matrix(labels[self.results['trainIndexes']], self.results['trainPredictions']).ravel()],
             },
             'testMetrics': {
-                'accuracy': accuracy_score(labels[self.results['testIndexes']], self.results['testPredictions']),
-                'balanced_accuracy': balanced_accuracy_score(labels[self.results['testIndexes']], self.results['testPredictions']),
-                'f1': f1_score(labels[self.results['testIndexes']], self.results['testPredictions']),
-                'precision': precision_score(labels[self.results['testIndexes']], self.results['testPredictions']), # Sensitivity
-                'recall': recall_score(labels[self.results['testIndexes']], self.results['testPredictions']),       # Specificity
-                'roc_auc': roc_auc_score(labels[self.results['testIndexes']], self.results['testPredictions']),
-                
-                'confusion_matrix': confusion_matrix(labels[self.results['testIndexes']], self.results['testPredictions']),
+                'accuracy': float(accuracy_score(labels[self.results['testIndexes']], self.results['testPredictions'])),
+                'balanced_accuracy': float(balanced_accuracy_score(labels[self.results['testIndexes']], self.results['testPredictions'])),
+                'f1': float(f1_score(labels[self.results['testIndexes']], self.results['testPredictions'])),
+                'precision': float(precision_score(labels[self.results['testIndexes']], self.results['testPredictions'])), # Sensitivity
+                'recall': float(recall_score(labels[self.results['testIndexes']], self.results['testPredictions'])),       # Specificity
+                'roc_auc': float(roc_auc_score(labels[self.results['testIndexes']], self.results['testPredictions'])),
+                'confusion_matrix': [int(a) for a in confusion_matrix(labels[self.results['testIndexes']], self.results['testPredictions']).ravel()],
             }
         }
 
@@ -60,7 +76,8 @@ class EvaluationResult:
         # metrics['testMetrics']['FPR'] = FPR
         # metrics['testMetrics']['TPR'] = TPR
         # metrics['testMetrics']['thresholds'] = thresholds
-
+        
+        self.metrics = metrics
         return metrics
 
 
@@ -103,15 +120,13 @@ class EvaluationSession:
         if 'modelParams' in kwargs:
             del kwargs['modelParams']
         
-        self._isStratifiedCV = kwargs['stratifiedCV'] if 'stratifiedCV' in kwargs else True
         self._folds = kwargs['crossValidationNFolds'] if 'crossValidationNFolds' in kwargs else 10
-        self._splitTest = kwargs['splitTest'] if 'splitTest' in kwargs else True
         self._crossValidation = kwargs['crossValidation'] if 'crossValidation' in kwargs else None
         self._crossValidationShuffle = kwargs['crossValidationShuffle'] if 'crossValidationShuffle' in kwargs else False
         self._randomState = kwargs['randomState'] if 'randomState' in kwargs else 42
         self._testSize = kwargs['testSize'] if 'testSize' in kwargs else 1/3
 
-        self._methodName = self.method[0].__name__()
+        self._methodName = self.method[0].__name__() if hasattr(self.method[0], '__name__') else self.method[0].__class__.__name__
         self._modelName = self.model[0].__class__.__name__
 
         log.info('Evaluation session starts.')
@@ -131,36 +146,37 @@ class EvaluationSession:
                 self._X_train, self._X_test = X[train_index], X[test_index]
                 self._y_train, self._y_test = y[train_index], y[test_index]
 
-                pipeline = self.__getPipeline()
-                if self._radiomicFeaturesNames:
-                    pipeline.fit(self._X_train, self._y_train, fs__featureNames=self._radiomicFeaturesNames)
-                else:
-                    pipeline.fit(self._X_train, self._y_train)
-                evaluationResult = self._createEvaluationResult(pipeline, fold=i)
-                evaluationResults.append(evaluationResult)
+                evaluationResults.append(
+                    self.__executePipeline(fold=i)
+                )
+
                 bar.update(i)
             
             bar.finish()
         else:
-            shuffleSplit = ShuffleSplit(n_splits=1, test_size=self._testSize, random_state=self._randomState)
+            shuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=self._testSize, random_state=self._randomState)
             shuffleSplit.get_n_splits(X, y)
             self._train_index, self._test_index = next(shuffleSplit.split(X, y)) 
             self._X_train, self._X_test = X[self._train_index], X[self._test_index] 
             self._y_train, self._y_test = y[self._train_index], y[self._test_index]
 
-            log.debug(self._train_index.shape)
-            log.debug(self._test_index.shape)
-
-            pipeline = self.__getPipeline()
-            if self._radiomicFeaturesNames:
-                pipeline.fit(self._X_train, self._y_train, fs__featureNames=self._radiomicFeaturesNames)
-            else:
-                pipeline.fit(self._X_train, self._y_train)
-            evaluationResult = self._createEvaluationResult(pipeline)
-            evaluationResults.append(evaluationResult)
+            evaluationResults.append(
+                self.__executePipeline()
+            )
 
         log.info('Evaluation session teminated.')
         return evaluationResults
+    
+    def __executePipeline(self, fold: int = None) -> EvaluationResult:
+        pipeline = self.__getPipeline()
+        if isinstance(self.method[0], TuRF):
+            pipeline.fit(self._X_train, self._y_train, fs__headers=self._radiomicFeaturesNames)
+        elif self._radiomicFeaturesNames and not isinstance(self.method[0], ReliefF):
+            pipeline.fit(self._X_train, self._y_train, fs__featureNames=self._radiomicFeaturesNames)
+        else:
+            pipeline.fit(self._X_train, self._y_train)
+        return self._createEvaluationResult(pipeline, fold=fold) if fold else self._createEvaluationResult(pipeline)
+        
     
     def __getPipeline(self):
         pipelineSteps = []
@@ -195,22 +211,10 @@ class Evaluator:
     def evaluate(self, X, y, **kwargs) -> EvaluationResult:
         patientIds = kwargs['patientIds'] if 'patientIds' in kwargs else None
         radiomicFeaturesNames = kwargs['radiomicFeaturesNames'] if 'radiomicFeaturesNames' in kwargs else None
-
-        experimentData = {
-            'method': 'spearman',
-            'methodParams': {
-                'nFeatures': 1100
-            },
-            'model': 'svm',
-            'modelParams': {
-                'kernel': 'rbf'
-            },
-
-            'crossValidation': StratifiedKFold(),
-            'crossValidationNFolds': 10,
-            # 'testSize': 1/3,
-            'testSize': 0.35,
-        }
+        
+        if not 'experimentData' in kwargs:
+            raise AttributeError('`experimentData` is missing')
+        experimentData = kwargs['experimentData']
 
         if patientIds:
             experimentData['patientIds'] = patientIds
@@ -220,6 +224,6 @@ class Evaluator:
 
         with EvaluationSession() as sess:
             evaluationResult = sess.evaluate(X, y, **experimentData)
-        
+
         return evaluationResult
     
