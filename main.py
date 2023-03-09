@@ -1,6 +1,7 @@
 from src.main.configurator import configurator as conf
 from src.main.data import *
 from src.main.evaluation import *
+from src.main.notification import send_to_telegram
 
 import os
 from glob import glob as g
@@ -90,7 +91,9 @@ def runPicaiEvaluation():
         'saveResults': True,
     }
     crossCombinationEvaluator = CrossCombinationEvaluator()
+    send_to_telegram("Evaluation started.")
     crossCombinationEvaluator.evaluate(X, y, **args)
+    send_to_telegram("Evaluation ended.")
 
 def computePicaiBinWidth():
     ranges = []
@@ -137,4 +140,9 @@ def computePicaiBinWidth():
 if __name__ == '__main__':
     # runNsclcEvaluation()
     # computePicaiBinWidth()
-    runPicaiEvaluation()
+    try:
+        runPicaiEvaluation()
+    except Exception as e:
+        log.exception(e)
+        send_to_telegram('Exception occured: ' + e)
+    

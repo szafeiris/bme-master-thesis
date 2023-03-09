@@ -1,6 +1,7 @@
 from src.main.configurator import configurator as conf
 from src.main.data import *
 from src.main.algorithm import *
+from .notification import send_to_telegram
 
 from sklearn.metrics import *
 from sklearn.model_selection import *
@@ -294,7 +295,12 @@ class CrossCombinationEvaluator(Evaluator):
                     'saveSufix': f'cross_combination_feature_{featureNo}_'
                 }
                 log.debug(f'for {featureNo} features...')
-                super().evaluate(X, y, **args)
+                send_to_telegram(f'Running {method}/{model}/{featureNo}')
+                try:
+                    super().evaluate(X, y, **args)
+                except Exception as e:
+                    log.exception(e)
+                    send_to_telegram('Exception occured: ' + e)
 
     
     def getCrossCombinations(self) -> list:
