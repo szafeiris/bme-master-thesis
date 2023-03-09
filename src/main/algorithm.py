@@ -5,6 +5,9 @@ from sklearn.exceptions import NotFittedError
 
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import *
+from sklearn.neighbors import KNeighborsClassifier
+import xgboost as xgb
 
 from ITMO_FS.filters.univariate import select_k_best, UnivariateFilter, spearman_corr, pearson_corr
 from ITMO_FS.filters.multivariate import MultivariateFilter
@@ -216,7 +219,7 @@ ALGORITHMS = {
                 'n_neighbors': 100,
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': -1
+                'n_jobs': 1
             }
         },
         'surf': {
@@ -224,7 +227,7 @@ ALGORITHMS = {
             'methodParams': {
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': -1
+                'n_jobs': 1
             }
         },
         'surfstar': {
@@ -232,7 +235,7 @@ ALGORITHMS = {
             'methodParams': {
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': -1
+                'n_jobs': 1
             }
         },
         'multisurf': {
@@ -240,7 +243,7 @@ ALGORITHMS = {
             'methodParams': {
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': -1
+                'n_jobs': 1
             }
         },
         'multisurfstar': {
@@ -248,7 +251,7 @@ ALGORITHMS = {
             'methodParams': {
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': -1
+                'n_jobs': 1
             }
         },
         'turf': {
@@ -257,7 +260,7 @@ ALGORITHMS = {
                 'core_algorithm': 'relieff',
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': -1
+                'n_jobs': 1
             }
         },
         
@@ -271,18 +274,50 @@ ALGORITHMS = {
                 'two_step': True,
                 'max_iter': 20,
                 'random_state': 42,
-                'verbose': 2,
+                'verbose': 0,
             }
         },
 
     },
     'MODELS': {
-        'svm': {
+        'svm-linear': {
             'model': SVC(),
             'modelParams': {
                 'kernel': 'linear'
             }
         },
+        'svm-poly': {
+            'model': SVC(),
+            'modelParams': {
+                'kernel': 'poly',
+                'degree': 3
+            }
+        },
+        'rf': {
+            'model': RandomForestClassifier(),
+            'modelParams': {
+                'max_depth': 5,
+                'class_weight':'balanced'
+            }
+        },
+        'nb': {
+            'model': GaussianNB(),
+            'modelParams': {
+            }
+        },
+        'knn': {
+            'model': KNeighborsClassifier(),
+            'modelParams': {
+                'n_neighbors': 2
+            }
+        },
+        'xgb': {
+            'model': xgb.XGBClassifier() ,
+            'modelParams': {
+                'max_depth': 5,
+            }
+        },
+        
 
     }
 }

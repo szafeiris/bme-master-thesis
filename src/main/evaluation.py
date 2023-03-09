@@ -134,6 +134,10 @@ class EvaluationSession:
 
         self._methodName = self.method[0].__name__() if hasattr(self.method[0], '__name__') else self.method[0].__class__.__name__
         self._modelName = self.model[0].__class__.__name__
+        if self._modelName == 'SVC':
+            kernel = self.model[0].get_params()['kernel']
+            degree = self.model[0].get_params()['degree'] if kernel == 'poly' else ''
+            self._modelName = f"{self._modelName}#{kernel}#{degree}"
 
         log.info('Evaluation session starts.')
         log.info(f"Execute {self._methodName} and {self._modelName}")
@@ -217,6 +221,8 @@ class Evaluator:
     def evaluate(self, X, y, **kwargs) -> EvaluationResult:
         patientIds = kwargs['patientIds'] if 'patientIds' in kwargs else None
         radiomicFeaturesNames = kwargs['radiomicFeaturesNames'] if 'radiomicFeaturesNames' in kwargs else None
+        saveResults = kwargs['saveResults'] if 'saveResults' in kwargs else False
+        saveSufix = kwargs['saveSufix'] if 'saveSufix' in kwargs else ''
         
         if not 'experimentData' in kwargs:
             raise AttributeError('`experimentData` is missing')
@@ -229,7 +235,73 @@ class Evaluator:
             experimentData['radiomicFeaturesNames'] = radiomicFeaturesNames
 
         with EvaluationSession() as sess:
-            evaluationResult = sess.evaluate(X, y, **experimentData)
+            evaluationResults = sess.evaluate(X, y, **experimentData)
 
-        return evaluationResult
+            if saveResults:
+                evaluationResultsDictionary = []
+                for evaluationResult in evaluationResults:
+                    evaluationResult.calculateMetrics(y)
+                    evaluationResultDictionary = evaluationResult.dict()
+                    evaluationResultsDictionary.append(evaluationResultDictionary)
+
+                filename = f"{evaluationResultsDictionary[0]['1']['name']}_CV" if len(evaluationResultsDictionary) > 1 else f"{evaluationResultsDictionary[0]['name']}"
+                filename = f"{saveSufix}{filename}.json"
+                json.dump(
+                    evaluationResultsDictionary,
+                    open(os.path.join(conf.RESULTS_DIR, filename), 'w'),
+                    indent = '\t',
+                    sort_keys = True
+                )
+
+        return evaluationResults
+
+class CrossCombinationEvaluator(Evaluator):
+    def evaluate(self, X, y, **kwargs) -> EvaluationResult:
+        featureNumbers = kwargs['featuresNo'] if 'featuresNo' in kwargs else [int(X.shape[1]/2)]
+
+        for method, model in self.getCrossCombinations():
+            log.debug((method, model))
+            experimentData = {
+                'method': method,
+                'model': model,            
+                # 'crossValidation': StratifiedKFold(),
+                'crossValidationNFolds': 10,
+                'testSize': 1/3,
+                # 'testSize': 0.35,
+            }
+
+            if 'boruta' == method:
+                args = { 
+                    **kwargs,
+                    'experimentData': experimentData,
+                    'saveSufix': 'cross_combination_'
+                }
+                super().evaluate(X, y, **args)
+                continue
+            
+            for featureNo in featureNumbers:
+                if 'urf' in method or 'relieff' in method:
+                    experimentData['methodParams'] = {
+                        'n_features_to_select': featureNo
+                    }
+                else:
+                    experimentData['methodParams'] = {
+                        'nFeatures': featureNo
+                    }
+                args = { 
+                    **kwargs,
+                    'experimentData': experimentData,
+                    'saveSufix': f'cross_combination_feature_{featureNo}_'
+                }
+                log.debug(f'for {featureNo} features...')
+                super().evaluate(X, y, **args)
+
     
+    def getCrossCombinations(self) -> list:
+        combinations = []
+        for method in list(ALGORITHMS['FS_METHODS'].keys()):
+            for model in list(ALGORITHMS['MODELS'].keys()):
+                combinations.append((method, model))
+        return combinations
+        
+                

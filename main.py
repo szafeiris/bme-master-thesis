@@ -3,6 +3,7 @@ from src.main.data import *
 from src.main.evaluation import *
 
 import os
+from glob import glob as g
 
 ## Logging setup
 from logging.config import dictConfig
@@ -55,53 +56,42 @@ def runPicaiEvaluation():
     y[y == 2] = 0   # 0: ISUP = 2,
     y[y > 2] = 1    # 1: ISUP > 2
     
-    evaluator = Evaluator()
-    experimentData = {
-            # 'method': 'boruta',
-            # 'methodParams': {},
-            'method': 'pearson',
-            'methodParams': {
-                'nFeatures': 2
-                # 'n_features_to_select': 3
-            },
-            'model': 'svm',
-            'modelParams': {
-                'kernel': 'linear'
-            },
+    # evaluator = Evaluator()
+    # experimentData = {
+    #         # 'method': 'boruta',
+    #         # 'methodParams': {},
+    #         'method': 'pearson',
+    #         'methodParams': {
+    #             'nFeatures': 2
+    #             # 'n_features_to_select': 3
+    #         },
+    #         'model': 'svm-poly',
+    #         # 'crossValidation': StratifiedKFold(),
+    #         'crossValidationNFolds': 3,
+    #         'testSize': 1/3,
+    #         # 'testSize': 0.35,
+    #     }
+    # args = { 
+    #     'patientIds': patientIds,
+    #     'radiomicFeaturesNames': radiomicFeaturesNames,
+    #     'experimentData': experimentData,
+    #     'saveResults': True,
+    #     # 'saveSufix': 'single_'
+    # }
+    # evaluationResults = evaluator.evaluate(X, y, **args)
+    # log.debug(evaluationResults)
 
-            # 'crossValidation': StratifiedKFold(),
-            'crossValidationNFolds': 3,
-            # 'testSize': 1/3,
-            'testSize': 0.35,
-        }
-    
+    featuresNo = [int(a) for a in np.arange(start=5, step=10, stop=(5*(X.shape[1]/5)))]
+    featuresNo.append(int(X.shape[1]))
     args = { 
         'patientIds': patientIds,
         'radiomicFeaturesNames': radiomicFeaturesNames,
-        'experimentData': experimentData
+        'featuresNo': featuresNo,
+        'saveResults': True,
     }
-    evaluationResults = evaluator.evaluate(X, y, **args)
-    
-    evaluationResultsDictionary = []
-    for evaluationResult in evaluationResults:
-        evaluationResult.calculateMetrics(y)
-        evaluationResultDictionary = evaluationResult.dict()
-        evaluationResultsDictionary.append(evaluationResultDictionary)
+    crossCombinationEvaluator = CrossCombinationEvaluator()
+    crossCombinationEvaluator.evaluate(X, y, **args)
 
-    log.debug(evaluationResultsDictionary)
-    filename = f"{evaluationResultsDictionary[0]['1']['name']}_CV.json" if len(evaluationResultsDictionary) > 1 else f"{evaluationResultsDictionary[0]['name']}.json"
-    json.dump(
-        evaluationResultsDictionary,
-        open(os.path.join(conf.RESULTS_DIR, filename), 'w'),
-        indent = '\t',
-        sort_keys = True
-    )
- 
-    log.debug('=====================================')
-    log.debug(evaluationResultsDictionary)
-    log.debug('=====================================')
-
-from glob import glob as g
 def computePicaiBinWidth():
     ranges = []
 
