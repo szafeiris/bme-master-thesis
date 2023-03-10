@@ -265,7 +265,7 @@ class CrossCombinationEvaluator(Evaluator):
             experimentData = {
                 'method': method,
                 'model': model,            
-                'crossValidation': StratifiedKFold(),
+                # 'crossValidation': StratifiedKFold(),
                 'crossValidationNFolds': 10,
                 'testSize': 1/3,
                 # 'testSize': 0.35,
