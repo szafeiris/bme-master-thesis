@@ -265,7 +265,7 @@ class CrossCombinationEvaluator(Evaluator):
             experimentData = {
                 'method': method,
                 'model': model,            
-                # 'crossValidation': StratifiedKFold(),
+                'crossValidation': StratifiedKFold(),
                 'crossValidationNFolds': 10,
                 'testSize': 1/3,
                 # 'testSize': 0.35,
@@ -300,7 +300,7 @@ class CrossCombinationEvaluator(Evaluator):
                     super().evaluate(X, y, **args)
                 except Exception as e:
                     log.exception(e)
-                    send_to_telegram('Exception occured: ' + e)
+                    send_to_telegram('Exception occured: ' + str(e))
 
     
     def getCrossCombinations(self) -> list:

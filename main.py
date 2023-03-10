@@ -144,5 +144,5 @@ if __name__ == '__main__':
         runPicaiEvaluation()
     except Exception as e:
         log.exception(e)
-        send_to_telegram('Exception occured: ' + e)
+        send_to_telegram('Exception occured: ' + str(e))
     
