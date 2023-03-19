@@ -1,4 +1,4 @@
-from . import configurator as conf
+from . import configurator as conf, log
 from .converter import NiftyConverter
 from .extractor import RadiomicExtractor, MultiLabelRadiomicExtractor
 import abc
@@ -9,13 +9,14 @@ import pydicom
 import nibabel as nib
 import SimpleITK as sitk
 import pandas as pd
+from json import JSONEncoder
 
-## Logging setup
-from logging.config import dictConfig
-import logging
 
-dictConfig(conf._LOGGING_CONFIG_)
-log = logging.getLogger()
+class NumpyArrayEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return JSONEncoder.default(self, obj)
 
 class DataReader:
     @abc.abstractmethod
@@ -154,56 +155,56 @@ class DataService:
         return self._radiomicReader.readCsv(csvPath)
 
 
-class NsclcRadiogenomicsDataService(DataService):
-    def __init__(self, dataReader: DataReader = DicomReader(),
-                       dataConverter: NiftyConverter = NiftyConverter(),
-                       radiomicsExtractor=RadiomicExtractor(conf.NSCLC_PYRADIOMICS_PARAMS_FILE),
-                       radiomicReader=RadiomicReader()) -> None:
-        super().__init__(dataReader, dataConverter, radiomicsExtractor, radiomicReader)
+# class NsclcRadiogenomicsDataService(DataService):
+#     def __init__(self, dataReader: DataReader = DicomReader(),
+#                        dataConverter: NiftyConverter = NiftyConverter(),
+#                        radiomicsExtractor=RadiomicExtractor(conf.NSCLC_PYRADIOMICS_PARAMS_FILE),
+#                        radiomicReader=RadiomicReader()) -> None:
+#         super().__init__(dataReader, dataConverter, radiomicsExtractor, radiomicReader)
         
-    def convertToNifty(self, inputPath, outputPath):
-        patients = glob.glob(os.path.join(inputPath, '**\\**'))
-        for patient in patients:
-            series = glob.glob(os.path.join(patient, '**'))
-            patientCode = patient.split('\\')[-2]
-            for s in series:
-                output = os.path.join(outputPath, patientCode)
-                if not os.path.exists(outputPath):
-                    os.mkdir(outputPath)
-                if not os.path.exists(output):
-                    os.mkdir(output)
-                if 'segmentation' in s:
-                    self._dataConverter.convertSegmentation(glob.glob(os.path.join(s, '**'))[0], os.path.join(output, s.split('\\')[-1] + '.nii'))
-                else:
-                    self._dataConverter.convert(s, os.path.join(output, s.split('\\')[-1] + '.nii'))
+#     def convertToNifty(self, inputPath, outputPath):
+#         patients = glob.glob(os.path.join(inputPath, '**\\**'))
+#         for patient in patients:
+#             series = glob.glob(os.path.join(patient, '**'))
+#             patientCode = patient.split('\\')[-2]
+#             for s in series:
+#                 output = os.path.join(outputPath, patientCode)
+#                 if not os.path.exists(outputPath):
+#                     os.mkdir(outputPath)
+#                 if not os.path.exists(output):
+#                     os.mkdir(output)
+#                 if 'segmentation' in s:
+#                     self._dataConverter.convertSegmentation(glob.glob(os.path.join(s, '**'))[0], os.path.join(output, s.split('\\')[-1] + '.nii'))
+#                 else:
+#                     self._dataConverter.convert(s, os.path.join(output, s.split('\\')[-1] + '.nii'))
            
-    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures = False):
-        csvData = {
-            'Image': [],
-            'Mask': [],
-            'Patient ID': []
-        }
+#     def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures = False):
+#         csvData = {
+#             'Image': [],
+#             'Mask': [],
+#             'Patient ID': []
+#         }
 
-        log.info("Gathering image data...")
-        patients = glob.glob(os.path.join(imageFolder, '**'))
-        for patient in patients:
-            patientCode = patient.split('\\')[-1]
-            csvData['Patient ID'].append(patientCode)
+#         log.info("Gathering image data...")
+#         patients = glob.glob(os.path.join(imageFolder, '**'))
+#         for patient in patients:
+#             patientCode = patient.split('\\')[-1]
+#             csvData['Patient ID'].append(patientCode)
 
-            series = glob.glob(os.path.join(patient, '*'))
-            for s in series:
-                if 'segmentation' in s:
-                    csvData['Mask'].append(s)
-                else:
-                    csvData['Image'].append(s)
+#             series = glob.glob(os.path.join(patient, '*'))
+#             for s in series:
+#                 if 'segmentation' in s:
+#                     csvData['Mask'].append(s)
+#                 else:
+#                     csvData['Image'].append(s)
 
-        log.info("Extracting radiomics features...")
-        radiomicFeaturesDataframe = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
-        if outputCsvFile is not None:
-            log.info('Saving radiomics file.')
-            radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
+#         log.info("Extracting radiomics features...")
+#         radiomicFeaturesDataframe = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
+#         if outputCsvFile is not None:
+#             log.info('Saving radiomics file.')
+#             radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
 
-        return radiomicFeaturesDataframe
+#         return radiomicFeaturesDataframe
 
 class PicaiDataService(DataService):
     def __init__(self, dataReader: DataReader = NiftyReader(),
@@ -215,7 +216,7 @@ class PicaiDataService(DataService):
     def convertToNifty(self, inputPath, outputPath):
         pass
            
-    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures = False):
+    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures=False, binWidth=11):
         csvData = {
             'Image': [],
             'Mask': [],
@@ -233,10 +234,47 @@ class PicaiDataService(DataService):
 
         log.info("Extracting radiomics features...")
         
-        radiomicFeaturesDataframe = self._radiomicsExtractor.extractFromCsv(csvData, keepDiagnosticsFeatures=keepDiagnosticsFeatures)
+        radiomicFeaturesDataframe = self._radiomicsExtractor.extractFromCsv(csvData,
+                                                                            keepDiagnosticsFeatures=keepDiagnosticsFeatures,
+                                                                            settings={"binWidth": binWidth})
         if outputCsvFile is not None:
             log.info('Saving radiomics file.')
             radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
 
         return radiomicFeaturesDataframe
+    
+    def getMetadata(self, path):
+        metadata = pd.read_csv(path)
+        return metadata
+    
+    def computeBinWidth(self, path=conf.PICAI_NIFTI_IMAGES_DIR, pathSufix='', bins=32):
+        if not os.path.exists(f'{pathSufix}ranges.npy'):
+            ranges = []
+            with open(f'{path}/data.txt', 'r') as idFile:
+                for id in idFile:
+                    id = id.rstrip('\n')
+                    imageFile = f'{path}/{pathSufix}images/{id}_t2w.nii.gz'
+                    maskFile = f'{path}/masks/{id}.nii.gz'
+                    
+                    image = self.read(imageFile)
+                    mask = self.read(maskFile)
+                    mask = mask > 0
+
+                    tempImage = image * mask
+                    tempImage = tempImage[tempImage > 0]
+                    ranges.append(int(np.max(tempImage) - np.min(tempImage)))
+                    
+                    del image
+                    del mask
+                    del tempImage
+
+            ranges = np.asarray(ranges)
+            np.save(f'{pathSufix}ranges.npy', ranges)
+        else:
+            ranges = np.load(f'{pathSufix}ranges.npy')
+
+        meanRange = float(np.mean(ranges))
+        binWidth = meanRange/bins
+    
+        return round(binWidth)
         

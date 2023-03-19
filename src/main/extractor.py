@@ -1,4 +1,4 @@
-from . import configurator as conf
+from . import log
 from radiomics import featureextractor
 import six
 import pandas as pd
@@ -6,20 +6,14 @@ import SimpleITK as sitk
 import numpy as np
 import progressbar
 
-## Logging setup
-from logging.config import dictConfig
-import logging
-
-dictConfig(conf._LOGGING_CONFIG_)
-log = logging.getLogger()
-
 class RadiomicExtractor:
     def __init__(self, paramFile=None):
         self.__paramFile__ = paramFile
 
     def extractFromCsv(self, csvData, **kwargs):
-        extractor = featureextractor.RadiomicsFeatureExtractor(self.__paramFile__)
         keepDiagnosticsFeatures = kwargs['keepDiagnosticsFeatures'] if 'keepDiagnosticsFeatures' in kwargs else False
+        kwargs.pop('keepDiagnosticsFeatures', None)
+        extractor = featureextractor.RadiomicsFeatureExtractor(self.__paramFile_)
         values = pd.DataFrame(csvData).values
 
         widgets=['[', progressbar.Timer(), '] ', progressbar.Bar(marker='.'),  progressbar.FormatLabel(' %(value)d/%(max)d '), '(', progressbar.Percentage(), ') - ', progressbar.AdaptiveETA()]
@@ -45,14 +39,16 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
         self.__paramFile__ = paramFile
 
     def extractFromCsv(self, csvData, **kwargs):
+        keepDiagnosticsFeatures = kwargs['keepDiagnosticsFeatures'] if 'keepDiagnosticsFeatures' in kwargs else False
+        kwargs.pop('keepDiagnosticsFeatures', None)
+
         if self.__paramFile__ is None:
-            extractor = featureextractor.RadiomicsFeatureExtractor()
+            extractor = featureextractor.RadiomicsFeatureExtractor(**kwargs)
             extractor.enableAllFeatures()
             extractor.enableAllImageTypes()
         else:
-            extractor = featureextractor.RadiomicsFeatureExtractor(self.__paramFile__)
+            extractor = featureextractor.RadiomicsFeatureExtractor(self.__paramFile__, **kwargs)
 
-        keepDiagnosticsFeatures = kwargs['keepDiagnosticsFeatures'] if 'keepDiagnosticsFeatures' in kwargs else False
         values = pd.DataFrame(csvData).values
 
         widgets=['[', progressbar.Timer(), '] ', progressbar.Bar(marker='.'),  progressbar.FormatLabel(' %(value)d/%(max)d '), '(', progressbar.Percentage(), ') - ', progressbar.AdaptiveETA()]

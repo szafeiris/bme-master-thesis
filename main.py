@@ -1,43 +1,10 @@
-from src.main.configurator import configurator as conf
+from src.main.configurator import configurator as conf, log
 from src.main.data import *
 from src.main.evaluation import *
 from src.main.notification import send_to_telegram
 
 import os
 from glob import glob as g
-
-## Logging setup
-from logging.config import dictConfig
-import logging
-
-dictConfig(conf._LOGGING_CONFIG_)
-log = logging.getLogger()
-
-def runNsclcEvaluation():    
-    dataService = NsclcRadiogenomicsDataService()
-
-    # Convert folders to nifty
-    if not os.path.exists(conf.NSCLC_NIFTI_IMAGES_DIR):
-        dataService.convertToNifty(conf.NSCLC_IMAGES_DIR, conf.NSCLC_NIFTI_IMAGES_DIR)
-
-    # Extract radiomics from images or read them
-    if os.path.exists(conf.NSCLC_RADIOMICS_FILE):
-        radiomicFeatures = dataService.readRadiomics(conf.NSCLC_RADIOMICS_FILE)
-    else:
-        radiomicFeatures = dataService.extractRadiomics(conf.NSCLC_NIFTI_IMAGES_DIR, conf.NSCLC_RADIOMICS_FILE)
-
-    patientIds = radiomicFeatures.pop('Patient_Id').to_list()
-    radiomicFeaturesNames = radiomicFeatures.columns.to_list()
-    X = radiomicFeatures.to_numpy()
-
-    # Declare labels
-    y = np.asarray([0, 0, 1, 1, 0, 0])
-
-    evaluator = Evaluator()
-    args = { 'patientIds': patientIds, 'radiomicFeaturesNames': radiomicFeaturesNames}
-    evaluationResults = evaluator.evaluate(X, y, **args)
-    for er in evaluationResults:
-        log.debug(er)
 
 def runPicaiEvaluation():    
     dataService = PicaiDataService()
@@ -46,8 +13,28 @@ def runPicaiEvaluation():
     if os.path.exists(conf.PICAI_RADIOMICS_FILE):
         radiomicFeatures = dataService.readRadiomics(conf.PICAI_RADIOMICS_FILE)
     else:
-        radiomicFeatures = dataService.extractRadiomics(conf.PICAI_NIFTI_IMAGES_DIR, conf.PICAI_RADIOMICS_FILE)
+        binWidth = dataService.computeBinWidth(conf.PICAI_NIFTI_IMAGES_DIR)
+        # log.info(f'Bin Width is {binWidth}.')
+        radiomicFeatures = dataService.extractRadiomics(conf.PICAI_NIFTI_IMAGES_DIR, conf.PICAI_RADIOMICS_FILE, binWidth=binWidth)
     
+    # Create labels for stratification
+    picaiMetadata = dataService.getMetadata(conf.PICAI_METADATA_PATH)    
+    jointDfs = pd.merge(picaiMetadata, radiomicFeatures, on='Patient_Id')
+    
+    conditions = [
+        (jointDfs['Label'] == 2) & (jointDfs['Manufacturer'] == 'Philips Medical Systems'),
+        (jointDfs['Label'] == 2) & (jointDfs['Manufacturer'] == 'SIEMENS'),
+        (jointDfs['Label'] > 2)  & (jointDfs['Manufacturer'] == 'Philips Medical Systems'),
+        (jointDfs['Label'] > 2)  & (jointDfs['Manufacturer'] == 'SIEMENS'),
+    ]
+    jointDfs['StratifiedLabels'] = np.select(conditions, [0, 1, 2, 3])
+    yStrat = jointDfs['StratifiedLabels'].to_numpy()
+    
+    # jointDfs2 = jointDfs[['Label', 'MagneticFieldStrength', 'StratifiedLabels', 'Patient_Id', 'Manufacturer']]
+    # jointDfs2.to_csv('joined_metadata.csv', index=False)
+    # log.debug(np.unique(yStrat, return_counts=True))
+
+    # Get features and original labels
     patientIds = radiomicFeatures.pop('Patient_Id').to_list()
     labels = radiomicFeatures.pop('Label')
     radiomicFeaturesNames = radiomicFeatures.columns.to_list()
@@ -56,90 +43,24 @@ def runPicaiEvaluation():
     y = np.copy(labels)
     y[y == 2] = 0   # 0: ISUP = 2,
     y[y > 2] = 1    # 1: ISUP > 2
-    
-    # evaluator = Evaluator()
-    # experimentData = {
-    #         # 'method': 'boruta',
-    #         # 'methodParams': {},
-    #         'method': 'pearson',
-    #         'methodParams': {
-    #             'nFeatures': 2
-    #             # 'n_features_to_select': 3
-    #         },
-    #         'model': 'svm-poly',
-    #         # 'crossValidation': StratifiedKFold(),
-    #         'crossValidationNFolds': 3,
-    #         'testSize': 1/3,
-    #         # 'testSize': 0.35,
-    #     }
-    # args = { 
-    #     'patientIds': patientIds,
-    #     'radiomicFeaturesNames': radiomicFeaturesNames,
-    #     'experimentData': experimentData,
-    #     'saveResults': True,
-    #     # 'saveSufix': 'single_'
-    # }
-    # evaluationResults = evaluator.evaluate(X, y, **args)
-    # log.debug(evaluationResults)
 
-    featuresNo = [int(a) for a in np.arange(start=5, step=10, stop=(5*(X.shape[1]/5)))]
-    featuresNo.append(int(X.shape[1]))
-    args = { 
+    # Configure evaluation
+    args = {
         'patientIds': patientIds,
         'radiomicFeaturesNames': radiomicFeaturesNames,
-        'featuresNo': featuresNo,
-        'saveResults': True,
+        'featureStart': 5,
+        'featureStep': 5,
+        'featureStop': 6,
+        # 'featureStop': 1132,
     }
-    crossCombinationEvaluator = CrossCombinationEvaluator()
+    evaluator = GridSearchNestedCVEvaluation(**args)
     send_to_telegram("Evaluation started.")
-    crossCombinationEvaluator.evaluate(X, y, **args)
+    evaluationResults = evaluator.evaluateAll(X, y, yStrat)
+    # evaluationResults = evaluator.evaluateSingle(X, y, yStrat, 'boruta', 'svm-linear')
+    json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/evaluation.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
     send_to_telegram("Evaluation ended.")
-
-def computePicaiBinWidth():
-    ranges = []
-
-    if not os.path.exists('ranges.npy'):
-        dataService = PicaiDataService()
-        imagePaths = g(os.path.join(conf.PICAI_NIFTI_IMAGES_DIR, 'images/**'))
-        for imagePath in imagePaths:
-            print(imagePath)
-            image = dataService.read(imagePath)
-            ranges.append(int(np.max(image) - np.min(image)))
-            del image
-
-        ranges = np.asarray(ranges)
-        np.save('ranges.npy', ranges)
-    else:
-        ranges = np.load('ranges.npy')
-
-    meanRange = np.mean(ranges)
-
-    binValues = []
-    binWidthValues = []
-
-    bins = 17
-    binWidth = 1
-    while bins > 16:
-        bins = meanRange/binWidth
-        if 16 <= bins <= 128:
-            print(f'Bins: {int(bins)}, BinWidth: {binWidth}')
-            binValues.append(int(bins))
-            binWidthValues.append(binWidth)
-        
-        binWidth += 1
-
-    binValues = np.asarray(list(binValues))
-    binWidthValues = np.asarray(list(binWidthValues))
-
-    print(binValues.shape)
-    print(binWidthValues.shape)
-
-    print(np.median(binValues))
-    print(np.median(binWidthValues))
-
+    
 if __name__ == '__main__':
-    # runNsclcEvaluation()
-    # computePicaiBinWidth()
     try:
         runPicaiEvaluation()
     except Exception as e:

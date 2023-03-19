@@ -1,4 +1,4 @@
-from src.main.configurator import configurator as conf
+from src.main.configurator import log
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.exceptions import NotFittedError
@@ -19,13 +19,6 @@ from boruta.boruta_py import BorutaPy
 import numpy as np
 import abc
 
-## Logging setup
-from logging.config import dictConfig
-import logging
-
-dictConfig(conf._LOGGING_CONFIG_)
-log = logging.getLogger()
-
 class FeatureSelectionAlgorithm(BaseEstimator, TransformerMixin):
     @abc.abstractclassmethod    
     def fit(self, X, y=None, **kwargs):
@@ -43,6 +36,13 @@ class FeatureSelectionAlgorithm(BaseEstimator, TransformerMixin):
             setattr(self, parameter, value)
         return self
 
+    def __getstate__(self):
+        return self.get_params().copy()
+
+    def __setstate__(self, params):
+        self.set_params(**params)
+        return self
+
 ## ITMO  filter methods
 ITMO_UV_METHODS = {
     'PEARSON': pearson_corr,
@@ -52,13 +52,21 @@ ITMO_UV_METHODS = {
 ITMO_MV_METHODS = ['MIM', 'MRMR', 'JMI', 'CIFE', 'MIFS', 'CMIM', 'ICAP', 'DCSF', 'CFR', 'MRI', 'IWFS']
 
 class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
-    def __init__(self, methodName=None, nFeatures=100):
+    def __init__(self, methodName=None, nFeatures=100, **kwargs):
         if nFeatures <= 0:
             raise ValueError('`nFeatures` must be greater than zero')
         
         self._cleaning()
-        self._methodName = methodName
         self.nFeatures = nFeatures
+        self._methodName = methodName
+        if methodName is None and 'method' in kwargs:
+            self._methodName = kwargs['method']
+           
+        try:
+            self.selectedFeatures = kwargs['selectedFeatures']
+            self.selectedFeaturesNames = kwargs['selectedFeaturesNames']
+        except:
+            pass
 
     def fit(self, X, y=None, **kwargs):
         self._cleaning()
@@ -90,10 +98,9 @@ class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
         if 'nFeatures' in parameters:
             self.nFeatures = parameters['nFeatures']
         
-        if 'methodName' in parameters:
-            self._methodName = parameters['methodName']
+        if 'method' in parameters:
+            self._methodName = parameters['method']
         
-        del self._method
         return self
     
     def _cleaning(self):
@@ -112,8 +119,8 @@ class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
         return self.get_params()
 
 class MultivariateIFsAlgorithm(ItmoFsAlgorithm):
-    def __init__(self, methodName=None, nFeatures=100):
-        super().__init__(methodName, nFeatures)
+    def __init__(self, methodName='MRMR', nFeatures=100, **kwargs):
+        super().__init__(methodName, nFeatures, **kwargs)
 
         if not methodName in ITMO_MV_METHODS:
             raise KeyError(f'method `{methodName}` is not in ITMO_MV_METHODS')
@@ -130,10 +137,8 @@ class MultivariateIFsAlgorithm(ItmoFsAlgorithm):
         return self
 
 class UnivariateIFsAlgorithm(ItmoFsAlgorithm):
-    def __init__(self, methodName=None, nFeatures=100):
-        super().__init__(methodName, nFeatures)
-        
-        self._methodName, self.nFeatures = methodName, nFeatures 
+    def __init__(self, methodName=None, nFeatures=100, **kwargs):
+        super().__init__(methodName, nFeatures, **kwargs)
         self.__createMethodFromName()
 
     def set_params(self, **parameters):
@@ -148,7 +153,7 @@ class UnivariateIFsAlgorithm(ItmoFsAlgorithm):
             raise KeyError(f'method `{self._methodName}` is not in ITMO_UV_METHODS')
 
 class BorutaFsAlgorithm(FeatureSelectionAlgorithm):
-    def __init__(self, estimator=None, n_estimators=1000, perc=100, alpha=0.05, two_step=True, max_iter=100, random_state=None, verbose=0):
+    def __init__(self, estimator=None, n_estimators=1000, perc=100, alpha=0.05, two_step=True, max_iter=100, random_state=None, verbose=0, **kwargs):
         self.estimator = estimator
         self.n_estimators = n_estimators
         self.perc = perc
@@ -157,8 +162,70 @@ class BorutaFsAlgorithm(FeatureSelectionAlgorithm):
         self.max_iter = max_iter
         self.random_state = random_state
         self.verbose = verbose
+
+        try:
+            self.selectedFeatures = kwargs['selectedFeatures']
+            self.selectedWeakFeatures = kwargs['selectedWeakFeatures']
+            self.featureRanking = kwargs['featureRanking']
+        except:
+            pass
         
         self._method = BorutaPy(self.estimator, self.n_estimators, self.perc, self.alpha, self.two_step, self.max_iter, self.random_state, self.verbose)
+        self._cleaning()
+
+    def fit(self, X, y=None, **kwargs):
+        self._cleaning()
+        self._method.fit(X, y)
+        self.selectedFeatures = self._method.support_
+        self.selectedWeakFeatures = self._method.support_weak_
+        self.featureRanking = self._method.ranking_
+        return self
+
+    def transform(self, X, y=None, **kwargs):
+        return self._method.transform(X)
+
+    def get_params(self, deep=True):
+        return {
+            # 'estimator': self.estimator.get_params() if deep else type(self.estimator),
+            'n_estimators': self.n_estimators,
+            'perc': self.perc,
+            'alpha': self.alpha,
+            'two_step': self.two_step,
+            'max_iter': self.max_iter,
+            'selectedFeatures': np.arange(self.selectedFeatures.shape[0])[self.selectedFeatures] if hasattr(self, 'selectedFeatures') else [],
+            'selectedWeakFeatures': np.arange(self.selectedWeakFeatures.shape[0])[self.selectedWeakFeatures] if hasattr(self, 'selectedWeakFeatures') else [],
+            'featureRanking': self.featureRanking if hasattr(self, 'featureRanking') else [],
+        }
+
+    def set_params(self, **parameters):
+        self._cleaning()
+        
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+        
+        self._method = BorutaPy(self.estimator, self.n_estimators, self.perc, self.alpha, self.two_step, self.max_iter, self.random_state, self.verbose)
+        return self
+    
+    def _cleaning(self):
+        if hasattr(self, 'selectedFeatures'):
+            del self.selectedFeatures
+        
+        if hasattr(self, 'selectedWeakFeatures'):
+            del self.selectedWeakFeatures
+        
+        if hasattr(self, 'featureRanking'):
+            del self.featureRanking
+    
+    def __name__(self):
+        return f"boruta_"
+    
+    def __dict__(self):
+        return self.get_params()
+
+
+class LassoFsAlgorithm(FeatureSelectionAlgorithm):
+    def __init__(self):    
+        # self._method = 
         self._cleaning()
 
     def fit(self, X, y=None, **kwargs):
@@ -198,15 +265,9 @@ class BorutaFsAlgorithm(FeatureSelectionAlgorithm):
     def _cleaning(self):
         if hasattr(self, 'selectedFeatures'):
             del self.selectedFeatures
-        
-        if hasattr(self, 'selectedWeakFeatures'):
-            del self.selectedWeakFeatures
-        
-        if hasattr(self, 'featureRanking'):
-            del self.featureRanking
     
     def __name__(self):
-        return f"boruta_"
+        return f"lasso_"
     
     def __dict__(self):
         return self.get_params()
@@ -219,7 +280,7 @@ ALGORITHMS = {
                 'n_neighbors': 100,
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': 1
+                'n_jobs': -1
             }
         },
         'surf': {
@@ -254,16 +315,6 @@ ALGORITHMS = {
                 'n_jobs': 1
             }
         },
-        'turf': {
-            'method': TuRF(core_algorithm='relieff'),
-            'methodParams': {
-                'core_algorithm': 'relieff',
-                'n_features_to_select': 2,
-                'discrete_threshold': 10,
-                'n_jobs': 1
-            }
-        },
-        
         'boruta': {
             'method': BorutaFsAlgorithm(estimator=RandomForestClassifier(class_weight='balanced', max_depth=5)),
             'methodParams': {
@@ -274,9 +325,14 @@ ALGORITHMS = {
                 'two_step': True,
                 'max_iter': 20,
                 'random_state': 42,
-                'verbose': 0,
+                'verbose': 1,
             }
         },
+        # 'lasso': {
+        #     'method': LassoFsAlgorithm(),
+        #     'methodParams': {
+        #     }
+        # },
 
     },
     'MODELS': {
@@ -286,11 +342,10 @@ ALGORITHMS = {
                 'kernel': 'linear'
             }
         },
-        'svm-poly': {
+        'svm-rbf': {
             'model': SVC(),
             'modelParams': {
-                'kernel': 'poly',
-                'degree': 3
+                'kernel': 'rbf',
             }
         },
         'rf': {
@@ -300,25 +355,24 @@ ALGORITHMS = {
                 'class_weight':'balanced'
             }
         },
-        'nb': {
+        'gnb': {
             'model': GaussianNB(),
-            'modelParams': {
-            }
+            'modelParams': {}
+        },
+        'mnb': {
+            'model': MultinomialNB(),
+            'modelParams': {}
         },
         'knn': {
             'model': KNeighborsClassifier(),
             'modelParams': {
-                'n_neighbors': 2
+                'n_neighbors': 5
             }
         },
         'xgb': {
-            'model': xgb.XGBClassifier() ,
-            'modelParams': {
-                'max_depth': 5,
-            }
+            'model': xgb.XGBClassifier(),
+            'modelParams': {}
         },
-        
-
     }
 }
 

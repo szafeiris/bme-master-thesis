@@ -1,5 +1,7 @@
 import os 
 import re
+from logging.config import dictConfig
+import logging
 
 class Configurator:
     _SettingCommentDelimiter_ = '#'
@@ -79,3 +81,7 @@ class Configurator:
         return self.__proccessQuery(value)
 
 configurator = Configurator()
+
+## Logging setup
+dictConfig(configurator._LOGGING_CONFIG_)
+log = logging.getLogger()
