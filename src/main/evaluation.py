@@ -1,22 +1,16 @@
-from src.main.configurator import configurator as conf
-from src.main.data import *
-from src.main.algorithm import *
+from sklearn.preprocessing import StandardScaler
+from .configurator import configurator as conf, log
+from .data import *
+from .algorithm import decodeMethod, decodeModel, ALGORITHMS
 from .notification import send_to_telegram
 
 from sklearn.metrics import *
 from sklearn.model_selection import *
 from sklearn.pipeline import Pipeline
-from sklearn.exceptions import UndefinedMetricWarning
 
+import numpy as np
 import progressbar
 import json
-
-## Logging setup
-from logging.config import dictConfig
-import logging
-
-dictConfig(conf._LOGGING_CONFIG_)
-log = logging.getLogger()
 
 class EvaluationResult:
     def __init__(self) -> None:
@@ -309,5 +303,122 @@ class CrossCombinationEvaluator(Evaluator):
             for model in list(ALGORITHMS['MODELS'].keys()):
                 combinations.append((method, model))
         return combinations
+
+
+class GridSearchNestedCVEvaluation:
+    def __init__(self, **kwargs) -> None:
+        self.patientIds = kwargs['patientIds'] if 'patientIds' in kwargs else None
+        self.radiomicFeaturesNames = kwargs['radiomicFeaturesNames'] if 'radiomicFeaturesNames' in kwargs else None
         
-                
+        featureStart = kwargs['featureStart'] if 'featureStart' in kwargs else None
+        featureStop = kwargs['featureStop'] if 'featureStop' in kwargs else None
+        featureStep = kwargs['featureStep'] if 'featureStep' in kwargs else None
+        self.featureNumbers = [int(a) for a in np.arange(start=featureStart, step=featureStep, stop=featureStop)]
+        # if self.featureNumbers[-1] != featureStop:
+        #     self.featureNumbers.append(featureStop)
+
+        self.combinations = []
+        for method in list(ALGORITHMS['FS_METHODS'].keys()):
+            for model in list(ALGORITHMS['MODELS'].keys()):
+                self.combinations.append((method, model))
+
+    def evaluateAll(self, X, y, yStrat):
+        data = {}
+        
+        # for combination in [('pearson', 'svm-linear'), ('spearman', 'svm-linear')]:
+        for combination in self.combinations:
+            results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1])
+            data[f'{combination[0]}_{combination[1]}'] = results
+
+        return data
+
+    def evaluateSingle(self, X, y, yStrat, methodName, modelName):
+        scoring = {
+            'auc': 'roc_auc',
+            'accuracy': make_scorer(accuracy_score),
+            'balanced_accuracy': make_scorer(balanced_accuracy_score),
+            'f1': make_scorer(f1_score),
+            'precision': make_scorer(precision_score),
+            'recall': make_scorer(recall_score),
+            'roc_auc': make_scorer(roc_auc_score),
+            'cohen_kappa': make_scorer(cohen_kappa_score),
+        }
+        results = {}
+        
+        log.info(f'Executing {methodName}/{modelName}.')
+        # Outter loop  (5-fold stratified cross validation)
+        stratifiedKFoldCV = StratifiedKFold(n_splits=5, shuffle=False)
+        for i, (train_index, test_index) in enumerate(stratifiedKFoldCV.split(X, yStrat)):
+            X_train_outter, X_test_outter = X[train_index], X[test_index]
+            y_train_outter, y_test_outter = y[train_index], y[test_index]
+            data = {}
+
+            log.info(f'Fold: {i + 1}')
+            # Evaluate ITMO methods with multiple features
+            if ('urf' in methodName) or ('relieff' == methodName):
+                param_grid = {
+                    'feature_selector__n_features_to_select': self.featureNumbers,
+                }
+            else:
+                param_grid = {
+                    'feature_selector__nFeatures': self.featureNumbers,
+                }
+
+            pipeline = Pipeline([
+                ('standard_scaler', StandardScaler()),
+                ('feature_selector', decodeMethod(methodName)[0]),
+                ('classifier', decodeModel(modelName)[0])
+            ])
+   
+            if 'boruta' in methodName: 
+                pipeline.fit(X_train_outter, y_train_outter)
+                data['best_method_params'] = pipeline.steps[1][1].get_params()
+
+                predictions = pipeline.predict(X_test_outter)
+
+                data['test_predictions'] = predictions
+                data['test_labels'] = y_test_outter
+                data['test_labels_strat'] = yStrat[test_index]
+                data['classification_report'] = classification_report(y_test_outter, predictions)
+                log.debug(data['classification_report'])
+     
+                results[f'{i + 1}'] = data.copy()
+
+                continue
+
+            grid = GridSearchCV(
+                    pipeline,
+                    param_grid,
+                    scoring=scoring,
+                    cv=5,
+                    refit="auc",
+                    verbose=0,
+                    n_jobs=-1,
+                    return_train_score=True
+                )
+   
+            # Fit the model using grid search 
+            grid.fit(X_train_outter, y_train_outter) 
+ 
+            bestParams = grid.best_params_            
+            log.debug(bestParams)
+            data['bestParameters'] = bestParams
+
+            cv_results = grid.cv_results_
+            data['cross_validation_results'] = cv_results
+            data['best_method_params'] = grid.best_estimator_.get_params()['steps'][1][1].get_params()
+            
+            grid_predictions = grid.predict(X_test_outter)
+            data['test_predictions'] = grid_predictions
+            data['test_labels'] = y_test_outter
+            data['test_labels_strat'] = yStrat[test_index]
+            data['classification_report'] = classification_report(y_test_outter, grid_predictions)
+            log.debug(data['classification_report'])
+
+            results[f'{i + 1}'] = data.copy()
+        
+        return results
+
+
+
+
