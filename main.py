@@ -50,8 +50,7 @@ def runPicaiEvaluation():
         'radiomicFeaturesNames': radiomicFeaturesNames,
         'featureStart': 5,
         'featureStep': 5,
-        'featureStop': 6,
-        # 'featureStop': 1132,
+        'featureStop': 1132,
     }
     evaluator = GridSearchNestedCVEvaluation(**args)
     send_to_telegram("Evaluation started.")
