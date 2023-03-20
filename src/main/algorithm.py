@@ -280,7 +280,8 @@ ALGORITHMS = {
                 'n_neighbors': 100,
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': -1
+                'n_jobs': -1,
+                'verbose': True
             }
         },
         'surf': {
@@ -288,7 +289,8 @@ ALGORITHMS = {
             'methodParams': {
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': 1
+                'n_jobs': -1,
+                'verbose': True
             }
         },
         'surfstar': {
@@ -296,7 +298,8 @@ ALGORITHMS = {
             'methodParams': {
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': 1
+                'n_jobs': -1,
+                'verbose': True
             }
         },
         'multisurf': {
@@ -304,7 +307,8 @@ ALGORITHMS = {
             'methodParams': {
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': 1
+                'n_jobs': -1,
+                'verbose': True
             }
         },
         'multisurfstar': {
@@ -312,7 +316,8 @@ ALGORITHMS = {
             'methodParams': {
                 'n_features_to_select': 2,
                 'discrete_threshold': 10,
-                'n_jobs': 1
+                'n_jobs': -1,
+                'verbose': True
             }
         },
         'boruta': {
