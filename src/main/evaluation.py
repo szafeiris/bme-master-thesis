@@ -1,7 +1,7 @@
 from sklearn.preprocessing import StandardScaler
 from .configurator import configurator as conf, log
 from .data import *
-from .algorithm import decodeMethod, decodeModel, ALGORITHMS
+from .algorithm import *
 from .notification import send_to_telegram
 
 from sklearn.metrics import *
@@ -347,7 +347,7 @@ class GridSearchNestedCVEvaluation:
         
         log.info(f'Executing {methodName}/{modelName}.')
         send_to_telegram(f'Executing {methodName}/{modelName}.')
-        
+
         # Outter loop  (5-fold stratified cross validation)
         stratifiedKFoldCV = StratifiedKFold(n_splits=5, shuffle=False)
         for i, (train_index, test_index) in enumerate(stratifiedKFoldCV.split(X, yStrat)):
