@@ -327,8 +327,13 @@ class GridSearchNestedCVEvaluation:
         
         # for combination in [('pearson', 'svm-linear'), ('spearman', 'svm-linear')]:
         for combination in self.combinations:
-            results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1])
-            data[f'{combination[0]}_{combination[1]}'] = results
+            try:
+                results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1])
+                data[f'{combination[0]}_{combination[1]}'] = results
+                json.dump(results, open(f'{conf.RESULTS_DIR}/{combination[0]}_{combination[1]}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+            except Exception as ex:
+                log.exception(ex)
+                log.error(f'Error during evaluation of {combination[0]}_{combination[1]}: {str(type(ex).__name__)} {str(ex.args)}')
 
         return data
 
