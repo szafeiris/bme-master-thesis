@@ -364,10 +364,6 @@ ALGORITHMS = {
             'model': GaussianNB(),
             'modelParams': {}
         },
-        'mnb': {
-            'model': MultinomialNB(),
-            'modelParams': {}
-        },
         'knn': {
             'model': KNeighborsClassifier(),
             'modelParams': {
