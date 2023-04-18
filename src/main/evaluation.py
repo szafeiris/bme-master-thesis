@@ -7,6 +7,7 @@ from .notification import send_to_telegram
 from sklearn.metrics import *
 from sklearn.model_selection import *
 from sklearn.pipeline import Pipeline
+from sklearn.model_selection import StratifiedShuffleSplit
 
 import numpy as np
 import progressbar
@@ -314,8 +315,6 @@ class GridSearchNestedCVEvaluation:
         featureStop = kwargs['featureStop'] if 'featureStop' in kwargs else None
         featureStep = kwargs['featureStep'] if 'featureStep' in kwargs else None
         self.featureNumbers = [int(a) for a in np.arange(start=featureStart, step=featureStep, stop=featureStop)]
-        # if self.featureNumbers[-1] != featureStop:
-        #     self.featureNumbers.append(featureStop)
 
         self.combinations = []
         for method in list(ALGORITHMS['FS_METHODS'].keys()):
@@ -326,17 +325,16 @@ class GridSearchNestedCVEvaluation:
         data = {}
         
         # for combination in [('lasso', 'svm-linear')]:
-        for combination in [('mrmr', 'svm-linear')]:
-        # for combination in [('mim', 'svm-linear')]:
+        # for combination in [('mrmr', 'svm-linear')]:
         # for combination in [('pearson', 'svm-linear'), ('spearman', 'svm-linear')]:
-        # for combination in self.combinations:
+        for combination in self.combinations:
             try:
                 results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1])
                 data[f'{combination[0]}_{combination[1]}'] = results
                 json.dump(results, open(f'{conf.RESULTS_DIR}/{combination[0]}_{combination[1]}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
             except Exception as ex:
-                log.exception(ex)
                 log.error(f'Error during evaluation of {combination[0]}_{combination[1]}: {str(type(ex).__name__)} {str(ex.args)}')
+                log.exception(ex)
 
         return data
 
@@ -351,117 +349,103 @@ class GridSearchNestedCVEvaluation:
             'roc_auc': make_scorer(roc_auc_score),
             'cohen_kappa': make_scorer(cohen_kappa_score),
         }
-        results = {}
         
         log.info(f'Executing {methodName}/{modelName}.')
         send_to_telegram(f'Executing {methodName}/{modelName}.')
 
-        # Outter loop  (5-fold stratified cross validation)
-        stratifiedKFoldCV = StratifiedKFold(n_splits=5, shuffle=False)
-        for i, (train_index, test_index) in enumerate(stratifiedKFoldCV.split(X, yStrat)):
-            X_train_outter, X_test_outter = X[train_index], X[test_index]
-            y_train_outter, y_test_outter = y[train_index], y[test_index]
-            data = {}
-
-            log.info(f'Fold: {i + 1}')
-            # Evaluate ITMO methods with multiple features
-            if ('urf' in methodName) or ('relieff' == methodName):
-                param_grid = {
-                    'feature_selector__n_features_to_select': self.featureNumbers,
-                }
-            else:
-                param_grid = {
-                    'feature_selector__nFeatures': self.featureNumbers,
-                }
-
-            pipeline = Pipeline([
-                ('standard_scaler', StandardScaler()),
-                ('feature_selector', decodeMethod(methodName)[0]),
-                ('classifier', decodeModel(modelName)[0])
-            ])
-   
-            if 'boruta' in methodName: 
-                pipeline.fit(X_train_outter, y_train_outter)
-                data['best_method_params'] = pipeline.steps[1][1].get_params()
-
-                predictions = pipeline.predict(X_test_outter)
-
-                data['test_predictions'] = predictions
-                data['test_labels'] = y_test_outter
-                data['test_labels_strat'] = yStrat[test_index]
-                data['classification_report'] = classification_report(y_test_outter, predictions)
-                log.debug(data['classification_report'])
-     
-                results[f'{i + 1}'] = data.copy()
-
-                continue
-
-            if 'lasso' in methodName:
-                search = GridSearchCV(pipeline,
-                                      {
-                                        'feature_selector__alpha': np.arange(0.01, 1, 0.01),
-                                        'feature_selector__random_state': [42],
-                                        'feature_selector__fit_intercept': [False],
-                                        'feature_selector__copy_X': [True],
-                                      },
-                                      cv=3,
-                                      scoring="roc_auc",
-                                      verbose=1,
-                                      n_jobs=-1,
-                                      refit=True)
-                
-                search.fit(X_train_outter, y_train_outter)
-                best_params = search.best_estimator_.named_steps['feature_selector'].get_params()
-                pipeline.steps[1][1].set_params(**best_params)
-
-                pipeline.fit(X_train_outter, y_train_outter)
-                data['best_method_params'] = pipeline.steps[1][1].get_params()
-
-                predictions = pipeline.predict(X_test_outter)
-
-                data['test_predictions'] = predictions
-                data['test_labels'] = y_test_outter
-                data['test_labels_strat'] = yStrat[test_index]
-                data['classification_report'] = classification_report(y_test_outter, predictions)
-                log.debug(data['classification_report'])
-     
-                results[f'{i + 1}'] = data.copy()
-
-                continue
-
-            grid = GridSearchCV(
-                    pipeline,
-                    param_grid,
-                    scoring=scoring,
-                    cv=5,
-                    refit="auc",
-                    verbose=0,
-                    n_jobs=-1,
-                    return_train_score=True
-                )
-   
-            # Fit the model using grid search 
-            grid.fit(X_train_outter, y_train_outter) 
- 
-            bestParams = grid.best_params_            
-            log.debug(bestParams)
-            data['bestParameters'] = bestParams
-
-            cv_results = grid.cv_results_
-            data['cross_validation_results'] = cv_results
-            data['best_method_params'] = grid.best_estimator_.get_params()['steps'][1][1].get_params()
-            
-            grid_predictions = grid.predict(X_test_outter)
-            data['test_predictions'] = grid_predictions
-            data['test_labels'] = y_test_outter
-            data['test_labels_strat'] = yStrat[test_index]
-            data['classification_report'] = classification_report(y_test_outter, grid_predictions)
-            log.debug(data['classification_report'])
-
-            results[f'{i + 1}'] = data.copy()
+        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4)
+        stratifiedShuffleSplit.get_n_splits(X, y)
+        train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat)) 
         
-        return results
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        data = {}
 
+        # Evaluate ITMO methods with multiple features
+        if ('urf' in methodName) or ('relieff' == methodName):
+            param_grid = {
+                'feature_selector__n_features_to_select': self.featureNumbers,
+            }
+        else:
+            param_grid = {
+                'feature_selector__nFeatures': self.featureNumbers,
+            }
 
+        pipeline = Pipeline([
+            ('standard_scaler', StandardScaler()),
+            ('feature_selector', decodeMethod(methodName)[0]),
+            ('classifier', decodeModel(modelName)[0])
+        ])
+   
+        if 'boruta' in methodName: 
+            pipeline.fit(X_train, y_train)
+            predictions = pipeline.predict(X_test)
+            
+            data['best_method_params'] = pipeline.steps[1][1].get_params()
+            data['test_predictions'] = predictions
+            data['test_labels'] = y_test
+            data['test_labels_strat'] = yStrat[test_index]
+            data['classification_report'] = classification_report(y_test, predictions)
+            log.debug(data['classification_report'])
+            
+            return data.copy()
 
+        if 'lasso' in methodName:
+            search = GridSearchCV(pipeline,
+                {
+                    'feature_selector__alpha': np.arange(0.01, 1, 0.01),
+                    'feature_selector__random_state': [42],
+                    'feature_selector__fit_intercept': [False],
+                    'feature_selector__copy_X': [True],
+                },
+                cv=3,
+                scoring="roc_auc",
+                verbose=1,
+                n_jobs=-1,
+                refit=True)
+                
+            search.fit(X_train, y_train)
+            best_params = search.best_estimator_.named_steps['feature_selector'].get_params()
+            pipeline.steps[1][1].set_params(**best_params)
 
+            pipeline.fit(X_train, y_train)
+            predictions = pipeline.predict(X_test)
+                        
+            data['best_method_params'] = pipeline.steps[1][1].get_params()
+            data['test_predictions'] = predictions
+            data['test_labels'] = y_test
+            data['test_labels_strat'] = yStrat[test_index]
+            data['classification_report'] = classification_report(y_test, predictions)
+            log.debug(data['classification_report'])
+     
+            return data.copy()
+
+        grid = GridSearchCV(
+                pipeline,
+                param_grid,
+                scoring=scoring,
+                cv=5,
+                refit="auc",
+                verbose=0,
+                n_jobs=-1,
+                return_train_score=True
+            )
+   
+        # Fit the model using grid search 
+        grid.fit(X_train, y_train) 
+ 
+        bestParams = grid.best_params_            
+        data['bestParameters'] = bestParams
+
+        cv_results = grid.cv_results_
+        data['cross_validation_results'] = cv_results
+        data['best_method_params'] = grid.best_estimator_.get_params()['steps'][1][1].get_params()
+            
+        grid_predictions = grid.predict(X_test)
+        data['test_predictions'] = grid_predictions
+        data['test_labels'] = y_test
+        data['test_labels_strat'] = yStrat[test_index]
+        data['classification_report'] = classification_report(y_test, grid_predictions)
+        log.debug(data['classification_report'])
+
+        return data.copy()

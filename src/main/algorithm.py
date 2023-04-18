@@ -258,8 +258,6 @@ class LassoFsAlgorithm(FeatureSelectionAlgorithm):
     def transform(self, X, y=None, **kwargs):
         X_ret = np.copy(X)
         importance = abs(self.__lasso.coef_)
-        if any(importance > 0):
-            log.debug(f'Found importance while a = {self.alpha}')
         X_ret = X_ret[:, importance > 0]
         return X_ret
 
