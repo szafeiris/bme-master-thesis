@@ -54,8 +54,8 @@ def runPicaiEvaluation():
     }
     evaluator = GridSearchNestedCVEvaluation(**args)
     send_to_telegram("Evaluation started.")
-    evaluationResults = evaluator.evaluateAll(X, y, yStrat)
-    # evaluationResults = evaluator.evaluateSingle(X, y, yStrat, 'boruta', 'svm-linear')
+    # evaluationResults = evaluator.evaluateAll(X, y, yStrat)
+    evaluationResults = evaluator.evaluateSingle(X, y, yStrat, 'pearson', 'svm-linear')
     json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/evaluation.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
     send_to_telegram("Evaluation ended.")
     

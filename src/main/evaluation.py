@@ -325,8 +325,11 @@ class GridSearchNestedCVEvaluation:
     def evaluateAll(self, X, y, yStrat):
         data = {}
         
+        # for combination in [('lasso', 'svm-linear')]:
+        for combination in [('mrmr', 'svm-linear')]:
+        # for combination in [('mim', 'svm-linear')]:
         # for combination in [('pearson', 'svm-linear'), ('spearman', 'svm-linear')]:
-        for combination in self.combinations:
+        # for combination in self.combinations:
             try:
                 results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1])
                 data[f'{combination[0]}_{combination[1]}'] = results
@@ -378,6 +381,39 @@ class GridSearchNestedCVEvaluation:
             ])
    
             if 'boruta' in methodName: 
+                pipeline.fit(X_train_outter, y_train_outter)
+                data['best_method_params'] = pipeline.steps[1][1].get_params()
+
+                predictions = pipeline.predict(X_test_outter)
+
+                data['test_predictions'] = predictions
+                data['test_labels'] = y_test_outter
+                data['test_labels_strat'] = yStrat[test_index]
+                data['classification_report'] = classification_report(y_test_outter, predictions)
+                log.debug(data['classification_report'])
+     
+                results[f'{i + 1}'] = data.copy()
+
+                continue
+
+            if 'lasso' in methodName:
+                search = GridSearchCV(pipeline,
+                                      {
+                                        'feature_selector__alpha': np.arange(0.01, 1, 0.01),
+                                        'feature_selector__random_state': [42],
+                                        'feature_selector__fit_intercept': [False],
+                                        'feature_selector__copy_X': [True],
+                                      },
+                                      cv=3,
+                                      scoring="roc_auc",
+                                      verbose=1,
+                                      n_jobs=-1,
+                                      refit=True)
+                
+                search.fit(X_train_outter, y_train_outter)
+                best_params = search.best_estimator_.named_steps['feature_selector'].get_params()
+                pipeline.steps[1][1].set_params(**best_params)
+
                 pipeline.fit(X_train_outter, y_train_outter)
                 data['best_method_params'] = pipeline.steps[1][1].get_params()
 
