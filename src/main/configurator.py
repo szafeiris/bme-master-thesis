@@ -84,4 +84,5 @@ configurator = Configurator()
 
 ## Logging setup
 dictConfig(configurator._LOGGING_CONFIG_)
+logging.getLogger('requests').setLevel(logging.CRITICAL)
 log = logging.getLogger()
