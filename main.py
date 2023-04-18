@@ -48,14 +48,14 @@ def runPicaiEvaluation():
     args = {
         'patientIds': patientIds,
         'radiomicFeaturesNames': radiomicFeaturesNames,
-        'featureStart': 5,
-        'featureStep': 10,
-        'featureStop': 225,
+        'featureStart': 3,
+        'featureStep': 5,
+        'featureStop': 100,
     }
     evaluator = GridSearchNestedCVEvaluation(**args)
     send_to_telegram("Evaluation started.")
     evaluationResults = evaluator.evaluateAll(X, y, yStrat)
-    # evaluationResults = evaluator.evaluateSingle(X, y, yStrat, 'boruta', 'svm-linear')
+    # evaluationResults = evaluator.evaluateSingle(X, y, yStrat, 'pearson', 'svm-linear')
     json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/evaluation.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
     send_to_telegram("Evaluation ended.")
     

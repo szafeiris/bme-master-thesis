@@ -1,3 +1,4 @@
+from sklearn.linear_model import Lasso
 from src.main.configurator import log
 
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -49,7 +50,8 @@ ITMO_UV_METHODS = {
     'SPEARMAN': spearman_corr
 }
 
-ITMO_MV_METHODS = ['MIM', 'MRMR', 'JMI', 'CIFE', 'MIFS', 'CMIM', 'ICAP', 'DCSF', 'CFR', 'MRI', 'IWFS']
+ITMO_MV_METHODS = ['MIFS', 'CMIM', 'MRMR']
+# ITMO_MV_METHODS = ['MIM', 'MRMR', 'JMI', 'CIFE', 'MIFS', 'CMIM', 'ICAP', 'DCSF', 'CFR', 'MRI', 'IWFS']
 
 class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
     def __init__(self, methodName=None, nFeatures=100, **kwargs):
@@ -58,12 +60,26 @@ class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
         
         self._cleaning()
         self.nFeatures = nFeatures
-        self._methodName = methodName
+        self.method = methodName
         if methodName is None and 'method' in kwargs:
-            self._methodName = kwargs['method']
+            self.method = kwargs['method']
            
         try:
             self.selectedFeatures = kwargs['selectedFeatures']
+        except:
+            pass
+
+        try:
+            self.method = kwargs['method']
+        except:
+            pass
+        
+        try:
+            self.nFeatures = kwargs['nFeatures']
+        except:
+            pass
+
+        try:
             self.selectedFeaturesNames = kwargs['selectedFeaturesNames']
         except:
             pass
@@ -87,7 +103,7 @@ class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
 
     def get_params(self, deep=True):
         return {
-            'method': self._methodName,
+            'method': self.method,
             'nFeatures': self.nFeatures,
             'selectedFeatures': self.selectedFeatures if hasattr(self, 'selectedFeatures') else [],
             'selectedFeaturesNames': self.selectedFeaturesNames if hasattr(self, 'selectedFeaturesNames') else [],
@@ -99,7 +115,7 @@ class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
             self.nFeatures = parameters['nFeatures']
         
         if 'method' in parameters:
-            self._methodName = parameters['method']
+            self.method = parameters['method']
         
         return self
     
@@ -113,7 +129,7 @@ class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
             del self.selectedFeaturesNames
     
     def __name__(self):
-        return f"{self._methodName}#{self.nFeatures}_"
+        return f"{self.method}#{self.nFeatures}_"
     
     def __dict__(self):
         return self.get_params()
@@ -130,10 +146,10 @@ class MultivariateIFsAlgorithm(ItmoFsAlgorithm):
     def set_params(self, **parameters):
         super().set_params(**parameters)
 
-        if not self._methodName in ITMO_MV_METHODS:
-            raise KeyError(f'method `{self._methodName}` is not in ITMO_MV_METHODS')
+        if not self.method in ITMO_MV_METHODS:
+            raise KeyError(f'method `{self.method}` is not in ITMO_MV_METHODS')
 
-        self._method = MultivariateFilter(self._methodName, self.nFeatures)
+        self._method = MultivariateFilter(self.method, self.nFeatures)
         return self
 
 class UnivariateIFsAlgorithm(ItmoFsAlgorithm):
@@ -148,9 +164,9 @@ class UnivariateIFsAlgorithm(ItmoFsAlgorithm):
     
     def __createMethodFromName(self):
         try:
-            self._method = UnivariateFilter(ITMO_UV_METHODS[self._methodName], select_k_best(self.nFeatures))
+            self._method = UnivariateFilter(ITMO_UV_METHODS[self.method], select_k_best(self.nFeatures))
         except KeyError:
-            raise KeyError(f'method `{self._methodName}` is not in ITMO_UV_METHODS')
+            raise KeyError(f'method `{self.method}` is not in ITMO_UV_METHODS')
 
 class BorutaFsAlgorithm(FeatureSelectionAlgorithm):
     def __init__(self, estimator=None, n_estimators=1000, perc=100, alpha=0.05, two_step=True, max_iter=100, random_state=None, verbose=0, **kwargs):
@@ -224,47 +240,39 @@ class BorutaFsAlgorithm(FeatureSelectionAlgorithm):
 
 
 class LassoFsAlgorithm(FeatureSelectionAlgorithm):
-    def __init__(self):    
-        # self._method = 
-        self._cleaning()
+    def __init__(self, alpha=0.14, **kwargs) -> None:
+        self.__lasso = Lasso(alpha=alpha, fit_intercept=False, copy_X=True, random_state=42)
+        self.alpha = alpha
+
+        try:
+            self.selectedFeatures = kwargs['selectedFeatures']
+        except:
+            pass
 
     def fit(self, X, y=None, **kwargs):
-        self._cleaning()
-        self._method.fit(X, y)
-        self.selectedFeatures = self._method.support_
-        self.selectedWeakFeatures = self._method.support_weak_
-        self.featureRanking = self._method.ranking_
+        self.__lasso.fit(X, y)
+        importance = abs(self.__lasso.coef_)
+        self.selectedFeatures = np.arange(importance.shape[0])[importance > 0]
         return self
 
     def transform(self, X, y=None, **kwargs):
-        return self._method.transform(X)
+        X_ret = np.copy(X)
+        importance = abs(self.__lasso.coef_)
+        X_ret = X_ret[:, importance > 0]
+        return X_ret
 
     def get_params(self, deep=True):
         return {
-            # 'estimator': self.estimator.get_params() if deep else type(self.estimator),
-            'n_estimators': self.n_estimators,
-            'perc': self.perc,
-            'alpha': self.alpha,
-            'two_step': self.two_step,
-            'max_iter': self.max_iter,
-            'selectedFeatures': [int(a) for a in np.arange(self.selectedFeatures.shape[0])[self.selectedFeatures]] if hasattr(self, 'selectedFeatures') else [],
-            'selectedWeakFeatures': [int(a) for a in np.arange(self.selectedWeakFeatures.shape[0])[self.selectedWeakFeatures]] if hasattr(self, 'selectedWeakFeatures') else [],
-            'featureRanking': [int(a) for a in self.featureRanking] if hasattr(self, 'featureRanking') else [],
+            'selectedFeatures': self.selectedFeatures  if hasattr(self, 'selectedFeatures') else np.array([]),
+            'alpha': self.alpha
         }
 
     def set_params(self, **parameters):
-        self._cleaning()
-        
         for parameter, value in parameters.items():
             setattr(self, parameter, value)
 
-        del self._method
-        self._method = BorutaPy(self.estimator, self.n_estimators, self.perc, self.alpha, self.two_step, self.max_iter, self.random_state, self.verbose)
+        self.__lasso = Lasso(alpha=self.alpha, fit_intercept=False, copy_X=True, random_state=42)
         return self
-    
-    def _cleaning(self):
-        if hasattr(self, 'selectedFeatures'):
-            del self.selectedFeatures
     
     def __name__(self):
         return f"lasso_"
@@ -333,11 +341,11 @@ ALGORITHMS = {
                 'verbose': 1,
             }
         },
-        # 'lasso': {
-        #     'method': LassoFsAlgorithm(),
-        #     'methodParams': {
-        #     }
-        # },
+        'lasso': {
+            'method': LassoFsAlgorithm(),
+            'methodParams': {
+            }
+        },
 
     },
     'MODELS': {
