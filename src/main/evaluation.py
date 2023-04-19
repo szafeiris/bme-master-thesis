@@ -311,9 +311,11 @@ class GridSearchNestedCVEvaluation:
         self.patientIds = kwargs['patientIds'] if 'patientIds' in kwargs else None
         self.radiomicFeaturesNames = kwargs['radiomicFeaturesNames'] if 'radiomicFeaturesNames' in kwargs else None
         
-        featureStart = kwargs['featureStart'] if 'featureStart' in kwargs else None
-        featureStop = kwargs['featureStop'] if 'featureStop' in kwargs else None
-        featureStep = kwargs['featureStep'] if 'featureStep' in kwargs else None
+        featureStart = kwargs['featureStart'] if 'featureStart' in kwargs else 4
+        
+        featureStart = kwargs['featureStart'] if 'featureStart' in kwargs else 4
+        featureStop = kwargs['featureStop'] if 'featureStop' in kwargs else 100
+        featureStep = kwargs['featureStep'] if 'featureStep' in kwargs else 5
         self.featureNumbers = [int(a) for a in np.arange(start=featureStart, step=featureStep, stop=featureStop)]
 
         self.combinations = []
@@ -321,21 +323,25 @@ class GridSearchNestedCVEvaluation:
             for model in list(ALGORITHMS['MODELS'].keys()):
                 self.combinations.append((method, model))
 
-    def evaluateAll(self, X, y, yStrat):
+    def evaluateAll(self, X, y, yStrat, sufix=''):
         data = {}
         
+        send_to_telegram(f"Evaluation started (images{sufix}).")
         # for combination in [('lasso', 'svm-linear')]:
-        # for combination in [('mrmr', 'svm-linear')]:
+        #  for combination in [('mrmr', 'svm-linear')]:
         # for combination in [('pearson', 'svm-linear'), ('spearman', 'svm-linear')]:
         for combination in self.combinations:
             try:
                 results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1])
                 data[f'{combination[0]}_{combination[1]}'] = results
-                json.dump(results, open(f'{conf.RESULTS_DIR}/{combination[0]}_{combination[1]}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+                json.dump(results, open(f'{conf.RESULTS_DIR}/{combination[0]}_{combination[1]}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
             except Exception as ex:
                 log.error(f'Error during evaluation of {combination[0]}_{combination[1]}: {str(type(ex).__name__)} {str(ex.args)}')
                 log.exception(ex)
-
+                send_to_telegram(f'Error during evaluation of {combination[0]}_{combination[1]}: {str(type(ex).__name__)} {str(ex.args)}')
+                send_to_telegram(f"{'=' * 50}\n{str(ex)}\n{'=' * 50}")
+        
+        send_to_telegram(f"Evaluation ended (images{sufix}).")
         return data
 
     def evaluateSingle(self, X, y, yStrat, methodName, modelName):
@@ -393,16 +399,16 @@ class GridSearchNestedCVEvaluation:
         if 'lasso' in methodName:
             search = GridSearchCV(pipeline,
                 {
-                    'feature_selector__alpha': np.arange(0.01, 1, 0.01),
+                    'feature_selector__alpha': np.arange(0.01, 0.5, 0.01),
                     'feature_selector__random_state': [42],
                     'feature_selector__fit_intercept': [False],
                     'feature_selector__copy_X': [True],
                 },
                 cv=3,
-                scoring="roc_auc",
-                verbose=1,
+                scoring=scoring,
+                verbose=0,
                 n_jobs=-1,
-                refit=True)
+                refit="auc")
                 
             search.fit(X_train, y_train)
             best_params = search.best_estimator_.named_steps['feature_selector'].get_params()

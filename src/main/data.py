@@ -216,7 +216,7 @@ class PicaiDataService(DataService):
     def convertToNifty(self, inputPath, outputPath):
         pass
            
-    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures=False, binWidth=11):
+    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures=False, binWidth=11, sufix=''):
         csvData = {
             'Image': [],
             'Mask': [],
@@ -230,7 +230,7 @@ class PicaiDataService(DataService):
             csvData['Patient ID'].append(patientCode)
 
             csvData['Mask'].append(os.path.join(os.path.join(imageFolder, 'masks'), patientCode + '.nii.gz'))
-            csvData['Image'].append(os.path.join(os.path.join(imageFolder, 'images'), patientCode + '_t2w.nii.gz'))
+            csvData['Image'].append(os.path.join(os.path.join(imageFolder, f'images{sufix}'), patientCode + '_t2w.nii.gz'))
 
         log.info("Extracting radiomics features...")
         
@@ -247,13 +247,13 @@ class PicaiDataService(DataService):
         metadata = pd.read_csv(path)
         return metadata
     
-    def computeBinWidth(self, path=conf.PICAI_NIFTI_IMAGES_DIR, pathSufix='', bins=32):
-        if not os.path.exists(f'{pathSufix}ranges.npy'):
+    def computeBinWidth(self, path=conf.PICAI_NIFTI_IMAGES_DIR, bins=32, sufix=''):
+        if not os.path.exists(f'ranges{sufix}.npy'):
             ranges = []
             with open(f'{path}/data.txt', 'r') as idFile:
                 for id in idFile:
                     id = id.rstrip('\n')
-                    imageFile = f'{path}/{pathSufix}images/{id}_t2w.nii.gz'
+                    imageFile = f'{path}/images{sufix}/{id}_t2w.nii.gz'
                     maskFile = f'{path}/masks/{id}.nii.gz'
                     
                     image = self.read(imageFile)
@@ -269,9 +269,9 @@ class PicaiDataService(DataService):
                     del tempImage
 
             ranges = np.asarray(ranges)
-            np.save(f'{pathSufix}ranges.npy', ranges)
+            np.save(f'ranges{sufix}.npy', ranges)
         else:
-            ranges = np.load(f'{pathSufix}ranges.npy')
+            ranges = np.load(f'ranges{sufix}.npy')
 
         meanRange = float(np.mean(ranges))
         binWidth = meanRange/bins
