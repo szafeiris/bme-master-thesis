@@ -59,8 +59,8 @@ def runPicaiEvaluation(sufix=''):
             'featureStop': 100,
         }
         evaluator = GridSearchNestedCVEvaluation(**args)
-        # evaluationResults = evaluator.evaluateAll(X, y, yStrat, sufix=sufix)
-        # json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/evaluation{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+        evaluationResults = evaluator.evaluateAll(X, y, yStrat, sufix=sufix)
+        json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/evaluation{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
         json.dump(args, open(f'{conf.RESULTS_DIR}/evaluation{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
     
     except Exception as e:
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     from multiprocessing import Process
     
     processes = [
-        # Process(target=runPicaiEvaluation, args=('',)),
+        Process(target=runPicaiEvaluation, args=('',)),
         Process(target=runPicaiEvaluation, args=('_n4',))
     ]
     for p in processes:

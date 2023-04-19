@@ -327,10 +327,10 @@ class GridSearchNestedCVEvaluation:
         data = {}
         
         send_to_telegram(f"Evaluation started (images{sufix}).")
-        for combination in [('lasso', 'svm-linear')]:
+        # for combination in [('lasso', 'svm-linear')]:
         #  for combination in [('mrmr', 'svm-linear')]:
         # for combination in [('pearson', 'svm-linear'), ('spearman', 'svm-linear')]:
-        # for combination in self.combinations:
+        for combination in self.combinations:
             try:
                 results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1])
                 data[f'{combination[0]}_{combination[1]}'] = results
