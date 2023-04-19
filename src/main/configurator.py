@@ -26,7 +26,7 @@ class Configurator:
             'version': 1,
             'disable_existing_loggers': True,
             'loggers': {
-                '': {
+                'bme-thesis': {
                     'level': self.LOG_LEVEL,
                     'handlers': ['console_handler', 'file_handler']
                 },
@@ -85,4 +85,5 @@ configurator = Configurator()
 ## Logging setup
 dictConfig(configurator._LOGGING_CONFIG_)
 logging.getLogger('requests').setLevel(logging.CRITICAL)
-log = logging.getLogger()
+logging.getLogger('radiomics').setLevel(logging.CRITICAL)
+log = logging.getLogger('bme-thesis')
