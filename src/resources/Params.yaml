@@ -52,9 +52,10 @@ setting:
   # MR signal is usually relative, with large differences between scanners and vendors. By normalizing the image before
   # feature calculation, this confounding effect may be reduced. However, if only one specific scanner is used, or the
   # images reflect some absolute world value (e.g. ADC maps, T2maps (NOT T2 weighted)), consider disabling the
-  # normalization.
-  normalize: true
-  normalizeScale: 100  # This allows you to use more or less the same bin width.
+  
+  ## normalization.
+  # normalize: true
+  # normalizeScale: 100  # This allows you to use more or less the same bin width.
 
   # Resampling:
   # If slices are very thin (~1mm), such as in 3D scanned (isotropic) volumes, resampledPixelSpacing may be reduced to

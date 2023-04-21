@@ -226,7 +226,7 @@ class PicaiDataService(DataService):
         log.info("Gathering image data...")
         masks = glob.glob(os.path.join(os.path.join(imageFolder, 'masks'), '**'))
         for mask in masks:
-            patientCode = mask.split('\\')[-1].replace('.nii.gz', '')
+            patientCode = mask.split(os.sep)[-1].replace('.nii.gz', '')
             csvData['Patient ID'].append(patientCode)
 
             csvData['Mask'].append(os.path.join(os.path.join(imageFolder, 'masks'), patientCode + '.nii.gz'))
