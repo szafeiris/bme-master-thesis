@@ -327,12 +327,12 @@ class GridSearchNestedCVEvaluation:
         data = {}
         
         send_to_telegram(f"Evaluation started (images{sufix}).")
-        # for combination in [('lasso', 'svm-linear')]:
+        # for combination in [('mifs', 'rf')]:
         #  for combination in [('mrmr', 'svm-linear')]:
         # for combination in [('pearson', 'svm-linear'), ('spearman', 'svm-linear')]:
         for combination in self.combinations:
             try:
-                results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1])
+                results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1], sufix=sufix)
                 data[f'{combination[0]}_{combination[1]}'] = results
                 json.dump(results, open(f'{conf.RESULTS_DIR}/{combination[0]}_{combination[1]}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
             except Exception as ex:
@@ -344,7 +344,7 @@ class GridSearchNestedCVEvaluation:
         send_to_telegram(f"Evaluation ended (images{sufix}).")
         return data
 
-    def evaluateSingle(self, X, y, yStrat, methodName, modelName):
+    def evaluateSingle(self, X, y, yStrat, methodName, modelName, sufix=''):
         scoring = {
             'auc': 'roc_auc',
             'accuracy': make_scorer(accuracy_score),
@@ -356,8 +356,11 @@ class GridSearchNestedCVEvaluation:
             'cohen_kappa': make_scorer(cohen_kappa_score),
         }
         
-        log.info(f'Executing {methodName}/{modelName}.')
-        send_to_telegram(f'Executing {methodName}/{modelName}.')
+        if sufix != '':
+            sufix = f'{sufix[1:].replace("_", "-")}'
+        
+        log.info(f'Executing {methodName}/{modelName}{sufix}.')
+        send_to_telegram(f'Executing {methodName}/{modelName}{sufix}.')
 
         stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4)
         stratifiedShuffleSplit.get_n_splits(X, y)
@@ -376,6 +379,12 @@ class GridSearchNestedCVEvaluation:
             param_grid = {
                 'feature_selector__nFeatures': self.featureNumbers,
             }
+            
+            if 'mifs' in methodName:
+                param_grid = {
+                    **param_grid,
+                    'feature_selector__beta': [1],
+                }
 
         pipeline = Pipeline([
             ('standard_scaler', StandardScaler()),
@@ -452,6 +461,9 @@ class GridSearchNestedCVEvaluation:
         data['test_labels'] = y_test
         data['test_labels_strat'] = yStrat[test_index]
         data['classification_report'] = classification_report(y_test, grid_predictions)
-        log.debug(data['classification_report'])
+        if sufix != '':
+            log.debug(sufix, data['classification_report'])
+        else:
+            log.debug(data['classification_report'])
 
         return data.copy()

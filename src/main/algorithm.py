@@ -135,13 +135,17 @@ class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
         return self.get_params()
 
 class MultivariateIFsAlgorithm(ItmoFsAlgorithm):
-    def __init__(self, methodName='MRMR', nFeatures=100, **kwargs):
+    def __init__(self, methodName='MRMR', nFeatures=100, beta=None, **kwargs):
         super().__init__(methodName, nFeatures, **kwargs)
+        self.beta = beta
 
         if not methodName in ITMO_MV_METHODS:
             raise KeyError(f'method `{methodName}` is not in ITMO_MV_METHODS')
         
-        self._method = MultivariateFilter(methodName, nFeatures)
+        if self.beta is None:
+            self._method = MultivariateFilter(methodName, nFeatures)
+        else:
+            self._method = MultivariateFilter(methodName, nFeatures, self.beta)
 
     def set_params(self, **parameters):
         super().set_params(**parameters)
@@ -149,7 +153,12 @@ class MultivariateIFsAlgorithm(ItmoFsAlgorithm):
         if not self.method in ITMO_MV_METHODS:
             raise KeyError(f'method `{self.method}` is not in ITMO_MV_METHODS')
 
-        self._method = MultivariateFilter(self.method, self.nFeatures)
+        self.beta = parameters['beta'] if 'beta' in parameters else None
+        if self.beta is None:
+            self._method = MultivariateFilter(self.method, self.nFeatures)
+        else:
+            self._method = MultivariateFilter(self.method, self.nFeatures, self.beta)
+            
         return self
 
 class UnivariateIFsAlgorithm(ItmoFsAlgorithm):
@@ -331,7 +340,7 @@ ALGORITHMS = {
         'boruta': {
             'method': BorutaFsAlgorithm(estimator=RandomForestClassifier(class_weight='balanced', max_depth=5)),
             'methodParams': {
-                'estimator': RandomForestClassifier(class_weight='balanced', max_depth=5),
+                'estimator': RandomForestClassifier(class_weight='balanced', max_depth=5, random_state=42),
                 'n_estimators': 'auto',
                 'perc': 50,
                 'alpha': 0.05,
@@ -365,7 +374,8 @@ ALGORITHMS = {
             'model': RandomForestClassifier(),
             'modelParams': {
                 'max_depth': 5,
-                'class_weight':'balanced'
+                'class_weight':'balanced',
+                'random_state': 42
             }
         },
         'gnb': {
