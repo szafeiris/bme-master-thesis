@@ -71,20 +71,20 @@ def runPicaiEvaluation(sufix=''):
 
 
 if __name__ == '__main__':
-    # from multiprocessing import Process
-    # 
-    # processes = [
-        # Process(target=runPicaiEvaluation, args=('',)),
-        # Process(target=runPicaiEvaluation, args=('_norm',)),
-        # Process(target=runPicaiEvaluation, args=('_n4',)),
-        # Process(target=runPicaiEvaluation, args=('_n4_norm',)),
-        # Process(target=runPicaiEvaluation, args=('_fat',)),
-        # Process(target=runPicaiEvaluation, args=('_muscle',)),
-    # ]
-    # for p in processes:
-        # p.start()
-        # 
-    # for p in processes:
-        # p.join()
+    from multiprocessing import Process
     
-    runPicaiEvaluation()
+    processes = [
+        Process(target=runPicaiEvaluation, args=('',)),
+        Process(target=runPicaiEvaluation, args=('_norm',)),
+        Process(target=runPicaiEvaluation, args=('_n4',)),
+        Process(target=runPicaiEvaluation, args=('_n4_norm',)),
+        Process(target=runPicaiEvaluation, args=('_fat',)),
+        Process(target=runPicaiEvaluation, args=('_muscle',)),
+    ]
+    for p in processes:
+        p.start()
+        
+    for p in processes:
+        p.join()
+    
+    # runPicaiEvaluation()
