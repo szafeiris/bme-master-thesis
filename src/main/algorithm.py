@@ -50,7 +50,7 @@ ITMO_UV_METHODS = {
     'SPEARMAN': spearman_corr
 }
 
-ITMO_MV_METHODS = ['MIFS', 'CMIM', 'MRMR']
+ITMO_MV_METHODS = ['MIFS', 'JMI', 'CMIM', 'MRMR']
 # ITMO_MV_METHODS = ['MIM', 'MRMR', 'JMI', 'CIFE', 'MIFS', 'CMIM', 'ICAP', 'DCSF', 'CFR', 'MRI', 'IWFS']
 
 class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
