@@ -42,13 +42,8 @@ class MultiLabelRadiomicExtractor(RadiomicExtractor):
         keepDiagnosticsFeatures = kwargs['keepDiagnosticsFeatures'] if 'keepDiagnosticsFeatures' in kwargs else False
         kwargs.pop('keepDiagnosticsFeatures', None)
 
-        if self.__paramFile__ is None:
-            extractor = featureextractor.RadiomicsFeatureExtractor(**kwargs)
-            extractor.enableAllFeatures()
-            extractor.enableAllImageTypes()
-        else:
-            extractor = featureextractor.RadiomicsFeatureExtractor(self.__paramFile__, **kwargs)
-
+        extractor = featureextractor.RadiomicsFeatureExtractor(self.__paramFile__, **kwargs)
+        
         values = pd.DataFrame(csvData).values
 
         widgets=['[', progressbar.Timer(), '] ', progressbar.Bar(marker='.'),  progressbar.FormatLabel(' %(value)d/%(max)d '), '(', progressbar.Percentage(), ') - ', progressbar.AdaptiveETA()]

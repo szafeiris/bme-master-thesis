@@ -53,9 +53,9 @@ setting:
   # feature calculation, this confounding effect may be reduced. However, if only one specific scanner is used, or the
   # images reflect some absolute world value (e.g. ADC maps, T2maps (NOT T2 weighted)), consider disabling the
   
-  ## normalization.
-  # normalize: true
-  # normalizeScale: 100  # This allows you to use more or less the same bin width.
+  # normalization.
+  #  normalize: true
+  #  normalizeScale: 100  # This allows you to use more or less the same bin width.
 
   # Resampling:
   # If slices are very thin (~1mm), such as in 3D scanned (isotropic) volumes, resampledPixelSpacing may be reduced to
@@ -63,7 +63,7 @@ setting:
   # On a side note: increasing the resampled spacing forces PyRadiomics to look at more coarse textures, which may or
   # may not increase accuracy and stability of your extracted features.
   interpolator: 'sitkBSpline'
-  resampledPixelSpacing: [2, 2, 2]
+  resampledPixelSpacing: [1, 1, 1]
 
   # Mask validation:
   # correctMask and geometryTolerance are not needed, as both image and mask are resampled, if you expect very small

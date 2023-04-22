@@ -216,7 +216,7 @@ class PicaiDataService(DataService):
     def convertToNifty(self, inputPath, outputPath):
         pass
            
-    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures=False, binWidth=11, sufix=''):
+    def extractRadiomics(self, imageFolder, outputCsvFile=None, keepDiagnosticsFeatures=False, binWidth=11, shiftValue=0, sufix=''):
         csvData = {
             'Image': [],
             'Mask': [],
@@ -236,7 +236,10 @@ class PicaiDataService(DataService):
         
         radiomicFeaturesDataframe = self._radiomicsExtractor.extractFromCsv(csvData,
                                                                             keepDiagnosticsFeatures=keepDiagnosticsFeatures,
-                                                                            settings={"binWidth": binWidth})
+                                                                            settings={
+                                                                                "binWidth": binWidth,
+                                                                                "voxelArrayShift": shiftValue
+                                                                            })
         if outputCsvFile is not None:
             log.info('Saving radiomics file.')
             radiomicFeaturesDataframe.to_csv(outputCsvFile, index=False)
@@ -248,6 +251,7 @@ class PicaiDataService(DataService):
         return metadata
     
     def computeBinWidth(self, path=conf.PICAI_NIFTI_IMAGES_DIR, bins=32, sufix=''):
+        globalMin = 0
         if not os.path.exists(f'ranges{sufix}.npy'):
             ranges = []
             with open(f'{path}/data.txt', 'r') as idFile:
@@ -261,8 +265,12 @@ class PicaiDataService(DataService):
                     mask = mask > 0
 
                     tempImage = image * mask
-                    tempImage = tempImage[tempImage > 0]
-                    ranges.append(int(np.max(tempImage) - np.min(tempImage)))
+                    tempImageMin = np.min(tempImage)
+                    if tempImageMin < globalMin:
+                        globalMin = tempImageMin
+                                                
+                    tempImage = tempImage[tempImage > tempImageMin]
+                    ranges.append(int(np.max(tempImage) - tempImageMin))
                     
                     del image
                     del mask
@@ -276,5 +284,5 @@ class PicaiDataService(DataService):
         meanRange = float(np.mean(ranges))
         binWidth = meanRange/bins
     
-        return round(binWidth)
+        return round(binWidth), abs(globalMin)
         

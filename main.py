@@ -19,9 +19,9 @@ def runPicaiEvaluation(sufix=''):
             radiomicFeatures = dataService.readRadiomics(radiomicsFileName)
         else:
             log.info(f'Generating radiomic features for `images{sufix}`.')
-            binWidth = dataService.computeBinWidth(conf.PICAI_NIFTI_IMAGES_DIR, sufix=sufix)
-            log.info(f'Selected bin Width is {binWidth}.')
-            radiomicFeatures = dataService.extractRadiomics(conf.PICAI_NIFTI_IMAGES_DIR, radiomicsFileName, binWidth=binWidth, sufix=sufix)
+            binWidth, shiftValue = dataService.computeBinWidth(conf.PICAI_NIFTI_IMAGES_DIR, sufix=sufix)
+            log.info(f'Selected bin Width is {binWidth} (Shift: {shiftValue}).')
+            radiomicFeatures = dataService.extractRadiomics(conf.PICAI_NIFTI_IMAGES_DIR, radiomicsFileName, binWidth=binWidth, shiftValue=shiftValue, sufix=sufix)
 
         # Create labels for stratification
         picaiMetadata = dataService.getMetadata(conf.PICAI_METADATA_PATH)    
@@ -71,18 +71,20 @@ def runPicaiEvaluation(sufix=''):
 
 
 if __name__ == '__main__':
-    from multiprocessing import Process
-    
-    processes = [
+    # from multiprocessing import Process
+    # 
+    # processes = [
         # Process(target=runPicaiEvaluation, args=('',)),
+        # Process(target=runPicaiEvaluation, args=('_norm',)),
+        # Process(target=runPicaiEvaluation, args=('_n4',)),
         # Process(target=runPicaiEvaluation, args=('_n4_norm',)),
-        Process(target=runPicaiEvaluation, args=('_n4',)),
-        Process(target=runPicaiEvaluation, args=('_fat',)),
-        Process(target=runPicaiEvaluation, args=('_muscle',)),
-    ]
-    for p in processes:
-        p.start()
-        
-    for p in processes:
-        p.join()
+        # Process(target=runPicaiEvaluation, args=('_fat',)),
+        # Process(target=runPicaiEvaluation, args=('_muscle',)),
+    # ]
+    # for p in processes:
+        # p.start()
+        # 
+    # for p in processes:
+        # p.join()
     
+    runPicaiEvaluation()
