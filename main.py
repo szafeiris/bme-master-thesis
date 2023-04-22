@@ -5,6 +5,7 @@ from src.main.notification import send_to_telegram
 
 import os
 from glob import glob as g
+from multiprocessing import Process
 
 def runPicaiEvaluation(sufix=''): 
     try:
@@ -71,8 +72,8 @@ def runPicaiEvaluation(sufix=''):
 
 
 if __name__ == '__main__':
-    from multiprocessing import Process
-    
+    # runPicaiEvaluation()
+        
     processes = [
         Process(target=runPicaiEvaluation, args=('',)),
         Process(target=runPicaiEvaluation, args=('_norm',)),
@@ -86,5 +87,3 @@ if __name__ == '__main__':
         
     for p in processes:
         p.join()
-    
-    # runPicaiEvaluation()
