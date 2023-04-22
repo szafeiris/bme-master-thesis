@@ -270,7 +270,7 @@ class PicaiDataService(DataService):
                         globalMin = tempImageMin
                                                 
                     tempImage = tempImage[tempImage > tempImageMin]
-                    ranges.append(int(np.max(tempImage) - tempImageMin))
+                    ranges.append(np.max(tempImage) - tempImageMin)
                     
                     del image
                     del mask
