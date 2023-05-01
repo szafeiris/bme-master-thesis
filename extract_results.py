@@ -44,7 +44,7 @@ def extractMetadata(resultName):
     datasetName = 'original'
     isNormalized = 'norm' in resultName
     
-    if len(metadata) == 3 and not isNormalized:
+    if len(metadata) == 4 or (len(metadata) == 3 and not isNormalized):
         datasetName = metadata[2]
         
     return featureSelectionMethodName, classifierName, datasetName, isNormalized
