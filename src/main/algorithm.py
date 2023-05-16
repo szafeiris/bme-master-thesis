@@ -324,15 +324,15 @@ def decodeMethod(methodName: str, featureNo=0, params=None):
     elif methodName == 'lasso':
         method = LassoFsAlgorithm()
     elif methodName == 'relieff':
-        method = ReliefF()
+        method = ReliefF(n_jobs=-1)
     elif methodName == 'surf':
-        method = SURF()
+        method = SURF(n_jobs=-1)
     elif methodName == 'surfstar':
-        method = SURFstar()
+        method = SURFstar(n_jobs=-1)
     elif methodName == 'multisurf':
-        method = MultiSURF()
+        method = MultiSURF(n_jobs=-1)
     elif methodName == 'multisurfstar':
-        method = MultiSURFstar()
+        method = MultiSURFstar(n_jobs=-1)
     else:
         raise ValueError(f'{methodName} is not supported yet!')
     
