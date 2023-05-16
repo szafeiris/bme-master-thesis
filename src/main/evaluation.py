@@ -6,8 +6,9 @@ from .notification import send_to_telegram
 
 from sklearn.metrics import *
 from sklearn.model_selection import *
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.ensemble import StackingClassifier
 
 import numpy as np
 import progressbar
@@ -106,7 +107,7 @@ class EvaluationSession:
         if not 'method' in kwargs:
             raise ValueError('`method` must be declared')
         self._featureSelectionSettings = kwargs['methodParams'] if 'methodParams' in kwargs else {}       
-        self.method = decodeMethod(kwargs['method'], self._featureSelectionSettings)
+        self.method = decodeMethod(kwargs['method'], params=self._featureSelectionSettings)
 
         del kwargs['method']
         if 'methodParams' in kwargs:
@@ -300,8 +301,8 @@ class CrossCombinationEvaluator(Evaluator):
     
     def getCrossCombinations(self) -> list:
         combinations = []
-        for method in list(ALGORITHMS['FS_METHODS'].keys()):
-            for model in list(ALGORITHMS['MODELS'].keys()):
+        for method in list(ALGORITHMS['FS_METHODS']):
+            for model in list(ALGORITHMS['MODELS']):
                 combinations.append((method, model))
         return combinations
 
@@ -319,8 +320,8 @@ class GridSearchNestedCVEvaluation:
         self.featureNumbers = [int(a) for a in np.arange(start=featureStart, step=featureStep, stop=featureStop)]
 
         self.combinations = []
-        for method in list(ALGORITHMS['FS_METHODS'].keys()):
-            for model in list(ALGORITHMS['MODELS'].keys()):
+        for method in list(ALGORITHMS['FS_METHODS']):
+            for model in list(ALGORITHMS['MODELS']):
                 self.combinations.append((method, model))
 
     def evaluateAll(self, X, y, yStrat, sufix=''):
@@ -388,8 +389,8 @@ class GridSearchNestedCVEvaluation:
 
         pipeline = Pipeline([
             ('standard_scaler', StandardScaler()),
-            ('feature_selector', decodeMethod(methodName)[0]),
-            ('classifier', decodeModel(modelName)[0])
+            ('feature_selector', decodeMethod(methodName)),
+            ('classifier', decodeModel(modelName))
         ])
    
         if 'boruta' in methodName: 
@@ -467,3 +468,116 @@ class GridSearchNestedCVEvaluation:
             log.debug(data['classification_report'])
 
         return data.copy()
+
+class HybridFsEvaluator:
+    def __init__(self) -> None:
+        pass
+    
+    def evaluateSingle(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):        
+        if sufix != '':
+            sufix = f'{sufix[1:].replace("_", "-")}'
+        
+        log.info(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
+        send_to_telegram(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
+
+        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4)
+        stratifiedShuffleSplit.get_n_splits(X, y)
+        train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat)) 
+        
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        
+        pipeline = Pipeline([
+            ('standard_scaler', StandardScaler()),
+            ('feature_selector_1', decodeMethod(methodName1)),
+            ('feature_selector_2', decodeMethod(methodName2)),
+            ('classifier', decodeModel(modelName))
+        ])
+        
+        if ('urf' in methodName1) or ('relieff' == methodName1):
+            pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
+        else:
+            pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
+        
+        if ('urf' in methodName1) or ('relieff' == methodName1):
+            pipeline.named_steps['feature_selector_2'].set_params(n_features_to_select=featureNumber2)
+        else:
+            pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
+        
+        
+        pipeline.fit(X_train, y_train)
+        
+        train_predictions = pipeline.predict(X_train)
+        test_predictions = pipeline.predict(X_test)
+        
+        log.debug('balanced_accuracy_score(y_test, train_predictions)')
+        log.debug(balanced_accuracy_score(y_train, train_predictions))
+        log.debug('balanced_accuracy_score(y_test, test_predictions)')
+        log.debug(balanced_accuracy_score(y_test, test_predictions))
+
+class FusionFsEvaluator:
+    def __init__(self) -> None:
+        pass
+    
+    def evaluate(self, X, y, yStrat, sufix=''):        
+        if sufix != '':
+            sufix = f'{sufix[1:].replace("_", "-")}'
+        
+        log.info(f'Executing fusion{sufix}.')
+        send_to_telegram(f'Executing fusion{sufix}.')
+
+        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4)
+        stratifiedShuffleSplit.get_n_splits(X, y)
+        train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat)) 
+        
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        
+        estimators = [
+            ('cmim-xgb', make_pipeline(
+                StandardScaler(),
+                MultivariateIFsAlgorithm('CMIM', 73),
+                decodeModel('xgb')
+                )
+            ),
+            ('mrmr-rf', make_pipeline(
+                StandardScaler(),
+                MultivariateIFsAlgorithm('MRMR', 23),
+                decodeModel('rf')
+                )
+            ),
+            ('multisurf-gnb', make_pipeline(
+                StandardScaler(),
+                MultiSURF(13),
+                decodeModel('gnb')
+                )
+            ),
+            ('multisurf-svm-rbf', make_pipeline(
+                StandardScaler(),
+                MultiSURF(18),
+                decodeModel('svm-rbf')
+                )
+            ),
+            ('relieff-knn', make_pipeline(
+                StandardScaler(),
+                ReliefF(68),
+                decodeModel('knn')
+                )
+            ),
+        ]
+        
+        stackingClassifier = StackingClassifier(
+            estimators=estimators,
+            final_estimator=decodeModel('rf'),
+            cv=4, verbose=2, n_jobs=-1
+        )  
+        
+        stackingClassifier.fit(X_train, y_train)
+        
+        train_predictions = stackingClassifier.predict(X_train)
+        test_predictions = stackingClassifier.predict(X_test)
+        
+        log.debug('balanced_accuracy_score(y_test, train_predictions)')
+        log.debug(balanced_accuracy_score(y_train, train_predictions))
+        log.debug('balanced_accuracy_score(y_test, test_predictions)')
+        log.debug(balanced_accuracy_score(y_test, test_predictions))
