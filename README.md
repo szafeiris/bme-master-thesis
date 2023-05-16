@@ -1,2 +1,1 @@
-# BME-Crete UoC
-## Master thesis of Stylianos Zafeiris
+# master-thesis
