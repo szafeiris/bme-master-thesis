@@ -290,158 +290,81 @@ class LassoFsAlgorithm(FeatureSelectionAlgorithm):
         return self.get_params()
 
 ALGORITHMS = {
-    'FS_METHODS': {
-        'relieff': {
-            'method': ReliefF(),
-            'methodParams': {
-                'n_neighbors': 100,
-                'n_features_to_select': 2,
-                'discrete_threshold': 10,
-                'n_jobs': -1,
-                'verbose': True
-            }
-        },
-        'surf': {
-            'method': SURF(),
-            'methodParams': {
-                'n_features_to_select': 2,
-                'discrete_threshold': 10,
-                'n_jobs': -1,
-                'verbose': True
-            }
-        },
-        'surfstar': {
-            'method': SURFstar(),
-            'methodParams': {
-                'n_features_to_select': 2,
-                'discrete_threshold': 10,
-                'n_jobs': -1,
-                'verbose': True
-            }
-        },
-        'multisurf': {
-            'method': MultiSURF(),
-            'methodParams': {
-                'n_features_to_select': 2,
-                'discrete_threshold': 10,
-                'n_jobs': -1,
-                'verbose': True
-            }
-        },
-        'multisurfstar': {
-            'method': MultiSURFstar(),
-            'methodParams': {
-                'n_features_to_select': 2,
-                'discrete_threshold': 10,
-                'n_jobs': -1,
-                'verbose': True
-            }
-        },
-        'boruta': {
-            'method': BorutaFsAlgorithm(estimator=RandomForestClassifier(class_weight='balanced', max_depth=5)),
-            'methodParams': {
-                'estimator': RandomForestClassifier(class_weight='balanced', max_depth=5, random_state=42),
-                'n_estimators': 'auto',
-                'perc': 50,
-                'alpha': 0.05,
-                'two_step': True,
-                'max_iter': 20,
-                'random_state': 42,
-                'verbose': 1,
-            }
-        },
-        'lasso': {
-            'method': LassoFsAlgorithm(),
-            'methodParams': {
-            }
-        },
-
-    },
-    'MODELS': {
-        'svm-linear': {
-            'model': SVC(),
-            'modelParams': {
-                'kernel': 'linear'
-            }
-        },
-        'svm-rbf': {
-            'model': SVC(),
-            'modelParams': {
-                'kernel': 'rbf',
-            }
-        },
-        'rf': {
-            'model': RandomForestClassifier(),
-            'modelParams': {
-                'max_depth': 5,
-                'class_weight':'balanced',
-                'random_state': 42
-            }
-        },
-        'gnb': {
-            'model': GaussianNB(),
-            'modelParams': {}
-        },
-        'knn': {
-            'model': KNeighborsClassifier(),
-            'modelParams': {
-                'n_neighbors': 5
-            }
-        },
-        'xgb': {
-            'model': xgb.XGBClassifier(),
-            'modelParams': {}
-        },
-    }
+    'FS_METHODS': ['relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar', 'boruta', 'lasso'],
+    'MODELS': ['svm-linear', 'svm-rbf', 'rf', 'gnb', 'knn', 'xgb']
 }
 
 ## Fill ALGORITHMS dictionary
 # ITMO Univariate methods
 for method in ITMO_UV_METHODS:
-    ALGORITHMS['FS_METHODS'][method.lower()] = {
-        'method': UnivariateIFsAlgorithm(method),
-        'methodParams': {
-            'nFeatures': 50
-        }
-    }
+    ALGORITHMS['FS_METHODS'].append(method.lower())
 
 # ITMO Multivariate methods
 for method in ITMO_MV_METHODS:
-    ALGORITHMS['FS_METHODS'][method.lower()] = {
-        'method': MultivariateIFsAlgorithm(method),
-        'methodParams': {
-            'nFeatures': 50
-        }
-    }
+    ALGORITHMS['FS_METHODS'].append(method.lower())
 
 
-def decodeMethod(methodName: str, params={}, applyParams=True):
-    if not methodName in ALGORITHMS['FS_METHODS'].keys():
-        raise ValueError(f'{methodName} does not exist in ALGORITHMS')
+def decodeMethod(methodName: str, featureNo=0, params=None):    
+    if methodName == 'pearson':
+        method = UnivariateIFsAlgorithm('PEARSON')
+    elif methodName == 'spearman':
+        method = UnivariateIFsAlgorithm('SPEARMAN')
+    elif methodName == 'mrmr':
+        method = MultivariateIFsAlgorithm('MRMR')
+    elif methodName == 'jmi':
+        method = MultivariateIFsAlgorithm('JMI')
+    elif methodName == 'mifs':
+        method = MultivariateIFsAlgorithm('MIFS')
+    elif methodName == 'cmim':
+        method = MultivariateIFsAlgorithm('CMIM')
+    elif methodName == 'boruta':
+        method = BorutaFsAlgorithm(
+                estimator=RandomForestClassifier(class_weight='balanced', max_depth=5, random_state=42),
+                n_estimators='auto', perc=50, alpha=0.05, two_step=True, max_iter=20, random_state=42, verbose=1)
+    elif methodName == 'lasso':
+        method = LassoFsAlgorithm()
+    elif methodName == 'relieff':
+        method = ReliefF()
+    elif methodName == 'surf':
+        method = SURF()
+    elif methodName == 'surfstar':
+        method = SURFstar()
+    elif methodName == 'multisurf':
+        method = MultiSURF()
+    elif methodName == 'multisurfstar':
+        method = MultiSURFstar()
+    else:
+        raise ValueError(f'{methodName} is not supported yet!')
     
-    methodParams = {
-        **ALGORITHMS['FS_METHODS'][methodName]['methodParams'],
-        **params
-    }
-    method = ALGORITHMS['FS_METHODS'][methodName]['method']
-
-    if applyParams:
-        method.set_params(**methodParams)
+    if featureNo > 0:
+        if ('urf' in methodName) or ('relieff' == methodName):
+            method.set_params(n_features_to_select=featureNo)
+        else:
+            method.set_params(nFeatures=featureNo)
     
-    return (method, methodParams)
-
-
-def decodeModel(modelName: str, params={}, applyParams=True):
-    if not modelName in ALGORITHMS['MODELS']:
-        raise ValueError(f'{modelName} does not exist in ALGORITHMS')
+    if params:
+        method.set_params(**params)
     
-    modelParams = {
-        **ALGORITHMS['MODELS'][modelName]['modelParams'],
-        **params
-    }
-    model = ALGORITHMS['MODELS'][modelName]['model']
-    
-    if applyParams:
-        model.set_params(**modelParams)
+    return method
 
-    return (model, modelParams)
+
+def decodeModel(modelName: str, params=None):
+    if modelName == 'svm-linear':
+        model = SVC(kernel='linear')
+    elif modelName == 'svm-rbf':
+        model = SVC(kernel='rbf')
+    elif modelName == 'gnb':
+        model = GaussianNB()
+    elif modelName == 'rf':
+        model = RandomForestClassifier(max_depth=5, class_weight='balanced') # random_state=42
+    elif modelName == 'knn':
+        model = KNeighborsClassifier(n_neighbors=5)
+    elif modelName == 'xgb':
+        model = xgb.XGBClassifier()
+    else:
+        raise ValueError(f'{modelName} is not supported yet!')
+    
+    if params:
+        model.set_params(**params)
+
+    return model
