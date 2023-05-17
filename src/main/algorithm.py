@@ -17,6 +17,7 @@ from skrebate import ReliefF, SURF, SURFstar, MultiSURF, MultiSURFstar, TuRF
 
 from boruta.boruta_py import BorutaPy
 
+import pandas as pd
 import numpy as np
 import abc
 
@@ -289,25 +290,70 @@ class LassoFsAlgorithm(FeatureSelectionAlgorithm):
     def __dict__(self):
         return self.get_params()
 
+class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
+    def __init__(self, method='pearson', threshold=0.95, **kwargs) -> None:
+        self.method = method
+        self.threshold = threshold
+
+        try:
+            self.selectedFeatures = kwargs['selectedFeatures']
+        except:
+            pass
+
+    def fit(self, X, y=None, **kwargs):
+        X_df = pd.DataFrame(X)
+        
+        corr_matrix = X_df.corr(method=self.method).abs()
+        upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
+        to_drop = [column for column in upper.columns if any(upper[column] > self.threshold)]
+        self.selectedFeatures = [column for column in upper.columns if any(upper[column] <= self.threshold)]
+        return self
+
+    def transform(self, X, y=None, **kwargs):
+        X_df = pd.DataFrame(X)
+        corr_matrix = X_df.corr(method=self.method).abs()
+        upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
+        to_drop = [column for column in upper.columns if any(upper[column] > self.threshold)]
+        X_df.drop(to_drop, axis=1, inplace=True)
+        log.debug(f'{self.method}-{self.threshold}')
+        return X_df.to_numpy()
+
+    def get_params(self, deep=True):
+        return {
+            'selectedFeatures': self.selectedFeatures  if hasattr(self, 'selectedFeatures') else np.array([]),
+            'method': self.method,
+            'threshold': self.threshold
+        }
+    
+    def __name__(self):
+        return f"{self.method}_"
+    
+    def __dict__(self):
+        return self.get_params()
+
 ALGORITHMS = {
-    'FS_METHODS': ['relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar', 'boruta', 'lasso'],
+    'FS_METHODS': ['pearson', 'spearman', 'relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar', 'boruta', 'lasso'],
     'MODELS': ['svm-linear', 'svm-rbf', 'rf', 'gnb', 'knn', 'xgb']
 }
 
 ## Fill ALGORITHMS dictionary
 # ITMO Univariate methods
 for method in ITMO_UV_METHODS:
-    ALGORITHMS['FS_METHODS'].append(method.lower())
+    ALGORITHMS['FS_METHODS'].append(f'{method.lower()}-itmo')
 
 # ITMO Multivariate methods
 for method in ITMO_MV_METHODS:
-    ALGORITHMS['FS_METHODS'].append(method.lower())
+    ALGORITHMS['FS_METHODS'].append(f'{method.lower()}-itmo')
 
 
 def decodeMethod(methodName: str, featureNo=0, params=None):    
     if methodName == 'pearson':
-        method = UnivariateIFsAlgorithm('PEARSON')
+        method = UnivariateFsAlgorithm('pearson')
     elif methodName == 'spearman':
+        method = UnivariateFsAlgorithm('spearman')
+    elif methodName == 'pearson-itmo':
+        method = UnivariateIFsAlgorithm('PEARSON')
+    elif methodName == 'spearman-itmo':
         method = UnivariateIFsAlgorithm('SPEARMAN')
     elif methodName == 'mrmr':
         method = MultivariateIFsAlgorithm('MRMR')
