@@ -480,44 +480,40 @@ class HybridFsEvaluator:
         log.info(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
         send_to_telegram(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
 
-        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4)
+        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4, random_state=42)
         stratifiedShuffleSplit.get_n_splits(X, y)
         train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat)) 
         
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
         
-        for modelName in ALGORITHMS['MODELS']:
-            log.info(f'Executing {modelName}')
+        log.info(f'> {modelName}')
             
-            pipeline = Pipeline([
-                ('standard_scaler', StandardScaler()),
-                ('feature_selector_1', decodeMethod(methodName1)),
-                ('feature_selector_2', decodeMethod(methodName2)),
-                ('classifier', decodeModel(modelName))
-            ], memory='./cache')
+        pipeline = Pipeline([
+            ('standard_scaler', StandardScaler()),
+            ('feature_selector_1', decodeMethod(methodName1)),
+            ('feature_selector_2', decodeMethod(methodName2)),
+            ('classifier', decodeModel(modelName))
+        ])
 
-            if ('urf' in methodName1) or ('relieff' == methodName1):
-                pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
-            elif methodName1 == 'pearson' or methodName1 == 'spearman':
-                pipeline.named_steps['feature_selector_1'].set_params(threshold=featureNumber1)
-            else:
-                pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
+        if ('urf' in methodName1) or ('relieff' == methodName1):
+            pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
+        elif methodName1 == 'pearson' or methodName1 == 'spearman' or methodName1 == 'kendall':
+            pipeline.named_steps['feature_selector_1'].set_params(threshold=featureNumber1)
+        else:
+            pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
 
-            if ('urf' in methodName2) or ('relieff' == methodName2):
-                pipeline.named_steps['feature_selector_2'].set_params(n_features_to_select=featureNumber2)
-            elif methodName2 == 'pearson' or methodName2 == 'spearman':
-                pipeline.named_steps['feature_selector_2'].set_params(threshold=featureNumber2)
-            else:
-                pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
+        if ('urf' in methodName2) or ('relieff' == methodName2):
+            pipeline.named_steps['feature_selector_2'].set_params(n_features_to_select=featureNumber2)
+        elif methodName2 == 'pearson' or methodName2 == 'spearman' or methodName1 == 'kendall':
+            pipeline.named_steps['feature_selector_2'].set_params(threshold=featureNumber2)
+        else:
+            pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
         
-        
-            pipeline.fit(X_train, y_train)
-        
-            train_predictions = pipeline.predict(X_train)
-            test_predictions = pipeline.predict(X_test)
-        
-            log.debug(f"Model {modelName} balanced accuracy -train:{balanced_accuracy_score(y_train, train_predictions)} -test:{balanced_accuracy_score(y_test, test_predictions)}.")
+        # GridSCV for `featureNo` for 2nd method
+        pipeline.fit(X_train, y_train)
+        predictions = pipeline.predict(X_test)
+        log.debug(f"Model {modelName} balanced accuracy (test set): {balanced_accuracy_score(y_test, predictions)}.")
 
 class FusionFsEvaluator:
     def __init__(self) -> None:
@@ -530,7 +526,7 @@ class FusionFsEvaluator:
         log.info(f'Executing fusion{sufix}.')
         send_to_telegram(f'Executing fusion{sufix}.')
 
-        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4)
+        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4, random_state=42)
         stratifiedShuffleSplit.get_n_splits(X, y)
         train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat)) 
         

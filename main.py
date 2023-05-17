@@ -83,13 +83,13 @@ def runPicaiHybridEvaluation(sufix=''):
         # Configure evaluation
         evaluator = HybridFsEvaluator()
         evaluationResults = evaluator.evaluateSingle(X, y, yStrat, 
-                                                     methodName1='spearman',
-                                                     featureNumber1=0.95,
+                                                     methodName1='pearson',
+                                                     featureNumber1=0.80,
                                                      methodName2='multisurf', 
                                                      featureNumber2=13,
-                                                     modelName='svm-linear', 
+                                                     modelName='rf', 
                                                      sufix=sufix)
-        json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/hybrid_evaluation{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+        # json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/hybrid_evaluation{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
 
     except Exception as e:
         log.exception(e)
@@ -172,7 +172,7 @@ if __name__ == '__main__':
     
     ## Hybrid analysis
     # Single run on original data
-    # runPicaiHybridEvaluation()
+    runPicaiHybridEvaluation()
     # Full analysis
     # executeHybridAnalysis()
     
@@ -180,5 +180,5 @@ if __name__ == '__main__':
     # Single run on original data
     # runPicaiFusionEvaluation()
     # Full analysis
-    executeFusionAnalysis()
+    # executeFusionAnalysis()
     

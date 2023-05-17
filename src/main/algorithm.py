@@ -291,7 +291,7 @@ class LassoFsAlgorithm(FeatureSelectionAlgorithm):
         return self.get_params()
 
 class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
-    def __init__(self, method='kendall', threshold=0.95, **kwargs) -> None:
+    def __init__(self, method='pearson', threshold=0.95, **kwargs) -> None:
         self.method = method
         self.threshold = threshold
 
@@ -303,19 +303,40 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
     def fit(self, X, y=None, **kwargs):
         X_df = pd.DataFrame(X)
         
-        corr_matrix = X_df.corr(method=self.method).abs()
-        upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
-        to_drop = [column for column in upper.columns if any(upper[column] > self.threshold)]
-        self.selectedFeatures = [column for column in upper.columns if any(upper[column] <= self.threshold)]
+        # corr_matrix = X_df.corr(method=self.method).abs()
+        # upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
+        # self.to_drop_ = [column for column in upper.columns if any(upper[column] >= self.threshold)]
+        # self.selectedFeatures = [column for column in upper.columns if any(upper[column] < self.threshold)]
+        
+        self.to_drop_ = self.corrX_orig(X_df, self.threshold)
+        self.selectedFeatures = [column for column in X_df.columns if not column in self.to_drop_]
         return self
 
     def transform(self, X, y=None, **kwargs):
         X_df = pd.DataFrame(X)
-        corr_matrix = X_df.corr(method=self.method).abs()
-        upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
-        to_drop = [column for column in upper.columns if any(upper[column] > self.threshold)]
-        X_df.drop(to_drop, axis=1, inplace=True)
+        X_df.drop(self.to_drop_, axis=1, inplace=True)
+        
         return X_df.to_numpy()
+    
+    def corrX_orig(self, df, cut = 0.95):
+        corr_mtx = df.corr().abs()
+        avg_corr = corr_mtx.mean(axis = 1)
+        up = corr_mtx.where(np.triu(np.ones(corr_mtx.shape), k=1).astype(np.bool))
+        drop = list()
+
+        for row in range(len(up)-1):
+            col_idx = row + 1
+            for col in range (col_idx, len(up)):
+                if(corr_mtx.iloc[row, col] > cut):
+                    if(avg_corr.iloc[row] > avg_corr.iloc[col]): 
+                        drop.append(row)
+                    else: 
+                        drop.append(col)
+    
+        drop_set = list(set(drop))
+        dropcols_names = list(df.columns[[item for item in drop_set]])
+    
+        return dropcols_names
 
     def get_params(self, deep=True):
         return {
