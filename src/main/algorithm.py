@@ -291,7 +291,7 @@ class LassoFsAlgorithm(FeatureSelectionAlgorithm):
         return self.get_params()
 
 class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
-    def __init__(self, method='pearson', threshold=0.95, **kwargs) -> None:
+    def __init__(self, method='kendall', threshold=0.95, **kwargs) -> None:
         self.method = method
         self.threshold = threshold
 
@@ -331,14 +331,14 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
         return self.get_params()
 
 ALGORITHMS = {
-    'FS_METHODS': ['pearson', 'spearman', 'relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar', 'boruta', 'lasso'],
+    'FS_METHODS': ['kendall', 'relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar', 'boruta', 'lasso'],
     'MODELS': ['svm-linear', 'svm-rbf', 'rf', 'gnb', 'knn', 'xgb']
 }
 
-## Fill ALGORITHMS dictionary
-# ITMO Univariate methods
-for method in ITMO_UV_METHODS:
-    ALGORITHMS['FS_METHODS'].append(f'{method.lower()}-itmo')
+# ## Fill ALGORITHMS dictionary
+# # ITMO Univariate methods
+# for method in ITMO_UV_METHODS:
+#     ALGORITHMS['FS_METHODS'].append(f'{method.lower()}-itmo')
 
 # ITMO Multivariate methods
 for method in ITMO_MV_METHODS:
@@ -350,6 +350,8 @@ def decodeMethod(methodName: str, featureNo=0, params=None):
         method = UnivariateFsAlgorithm('pearson')
     elif methodName == 'spearman':
         method = UnivariateFsAlgorithm('spearman')
+    elif methodName == 'kendall':
+        method = UnivariateFsAlgorithm('kendall')
     elif methodName == 'pearson-itmo':
         method = UnivariateIFsAlgorithm('PEARSON')
     elif methodName == 'spearman-itmo':
