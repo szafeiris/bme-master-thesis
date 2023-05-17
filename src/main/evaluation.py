@@ -487,33 +487,37 @@ class HybridFsEvaluator:
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
         
-        pipeline = Pipeline([
-            ('standard_scaler', StandardScaler()),
-            ('feature_selector_1', decodeMethod(methodName1)),
-            ('feature_selector_2', decodeMethod(methodName2)),
-            ('classifier', decodeModel(modelName))
-        ])
+        for modelName in ALGORITHMS['MODELS']:
+            log.info(f'Executing {modelName}')
+            
+            pipeline = Pipeline([
+                ('standard_scaler', StandardScaler()),
+                ('feature_selector_1', decodeMethod(methodName1)),
+                ('feature_selector_2', decodeMethod(methodName2)),
+                ('classifier', decodeModel(modelName))
+            ], memory='./cache')
+
+            if ('urf' in methodName1) or ('relieff' == methodName1):
+                pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
+            elif methodName1 == 'pearson' or methodName1 == 'spearman':
+                pipeline.named_steps['feature_selector_1'].set_params(threshold=featureNumber1)
+            else:
+                pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
+
+            if ('urf' in methodName2) or ('relieff' == methodName2):
+                pipeline.named_steps['feature_selector_2'].set_params(n_features_to_select=featureNumber2)
+            elif methodName2 == 'pearson' or methodName2 == 'spearman':
+                pipeline.named_steps['feature_selector_2'].set_params(threshold=featureNumber2)
+            else:
+                pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
         
-        if ('urf' in methodName1) or ('relieff' == methodName1):
-            pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
-        else:
-            pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
         
-        if ('urf' in methodName1) or ('relieff' == methodName1):
-            pipeline.named_steps['feature_selector_2'].set_params(n_features_to_select=featureNumber2)
-        else:
-            pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
+            pipeline.fit(X_train, y_train)
         
+            train_predictions = pipeline.predict(X_train)
+            test_predictions = pipeline.predict(X_test)
         
-        pipeline.fit(X_train, y_train)
-        
-        train_predictions = pipeline.predict(X_train)
-        test_predictions = pipeline.predict(X_test)
-        
-        log.debug('balanced_accuracy_score(y_test, train_predictions)')
-        log.debug(balanced_accuracy_score(y_train, train_predictions))
-        log.debug('balanced_accuracy_score(y_test, test_predictions)')
-        log.debug(balanced_accuracy_score(y_test, test_predictions))
+            log.debug(f"Model {modelName} balanced accuracy -train:{balanced_accuracy_score(y_train, train_predictions)} -test:{balanced_accuracy_score(y_test, test_predictions)}.")
 
 class FusionFsEvaluator:
     def __init__(self) -> None:
@@ -566,18 +570,42 @@ class FusionFsEvaluator:
             ),
         ]
         
-        stackingClassifier = StackingClassifier(
-            estimators=estimators,
-            final_estimator=decodeModel('rf'),
-            cv=4, verbose=2, n_jobs=-1
-        )  
+        evaluationResults = {}
+        for classifier in ALGORITHMS['MODELS']:
+            stackingClassifier = StackingClassifier(
+                estimators=estimators,
+                final_estimator=decodeModel(classifier),
+                cv=4, verbose=2, n_jobs=-1
+            )  
         
-        stackingClassifier.fit(X_train, y_train)
+            stackingClassifier.fit(X_train, y_train)
+            predictions = stackingClassifier.predict(X_test)
+            TN, FP, FN, TP = confusion_matrix(y_test, predictions).ravel()
         
-        train_predictions = stackingClassifier.predict(X_train)
-        test_predictions = stackingClassifier.predict(X_test)
+            data = {}
+            data['test_predictions'] = predictions
+            data['test_labels'] = y_test
+            data['test_labels_strat'] = yStrat[test_index]
+            data['classification_report'] = classification_report(y_test, predictions)
+            data = {
+                **data,   
+                'accuracy_score': float(accuracy_score(y_test, predictions)),
+                'balanced_accuracy_score': float(balanced_accuracy_score(y_test, predictions)),
+                'f1_score': float(f1_score(y_test, predictions)),
+                'precision_score': float(precision_score(y_test, predictions)),
+                'recall_score': float(recall_score(y_test, predictions)),
+                'roc_auc_score': float(roc_auc_score(y_test, predictions)),
+                'cohen_kappa_score': float(cohen_kappa_score(y_test, predictions)),
+                'TN': float(TN),
+                'FP': float(FP),
+                'FN': float(FN), 
+                'TP': float(TP),
+            }
+            
+            evaluationResults = {
+                **evaluationResults,
+                classifier: data.copy()
+            }
         
-        log.debug('balanced_accuracy_score(y_test, train_predictions)')
-        log.debug(balanced_accuracy_score(y_train, train_predictions))
-        log.debug('balanced_accuracy_score(y_test, test_predictions)')
-        log.debug(balanced_accuracy_score(y_test, test_predictions))
+        return evaluationResults
+        
