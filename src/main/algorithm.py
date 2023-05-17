@@ -315,7 +315,6 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
         upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
         to_drop = [column for column in upper.columns if any(upper[column] > self.threshold)]
         X_df.drop(to_drop, axis=1, inplace=True)
-        log.debug(f'{self.method}-{self.threshold}')
         return X_df.to_numpy()
 
     def get_params(self, deep=True):
