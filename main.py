@@ -168,11 +168,11 @@ if __name__ == '__main__':
     # Single run on original data
     # runPicaiEvaluation()
     # Full analysis
-    # executeOriginalAnalysis()  
+    executeOriginalAnalysis()  
     
     ## Hybrid analysis
     # Single run on original data
-    runPicaiHybridEvaluation()
+    # runPicaiHybridEvaluation()
     # Full analysis
     # executeHybridAnalysis()
     

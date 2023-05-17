@@ -318,6 +318,7 @@ class GridSearchNestedCVEvaluation:
         featureStop = kwargs['featureStop'] if 'featureStop' in kwargs else 100
         featureStep = kwargs['featureStep'] if 'featureStep' in kwargs else 5
         self.featureNumbers = [int(a) for a in np.arange(start=featureStart, step=featureStep, stop=featureStop)]
+        self.thresholds = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95,]
 
         self.combinations = []
         for method in list(ALGORITHMS['FS_METHODS']):
@@ -330,8 +331,8 @@ class GridSearchNestedCVEvaluation:
         send_to_telegram(f"Evaluation started (images{sufix}).")
         # for combination in [('mifs', 'rf')]:
         #  for combination in [('mrmr', 'svm-linear')]:
-        # for combination in [('pearson', 'svm-linear'), ('spearman', 'svm-linear')]:
-        for combination in self.combinations:
+        for combination in [('pearson', 'svm-linear'), ('pearson', 'svm-rbf'), ('pearson', 'rf'), ('pearson', 'knn'), ('pearson', 'gnb'), ('pearson', 'xgb'), ('spearman', 'svm-linear'), ('spearman', 'svm-rbf'), ('spearman', 'rf'), ('spearman', 'knn'), ('spearman', 'gnb'), ('spearman', 'xgb')]:
+        # for combination in self.combinations:            
             try:
                 results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1], sufix=sufix)
                 data[f'{combination[0]}_{combination[1]}'] = results
@@ -363,7 +364,7 @@ class GridSearchNestedCVEvaluation:
         log.info(f'Executing {methodName}/{modelName}{sufix}.')
         send_to_telegram(f'Executing {methodName}/{modelName}{sufix}.')
 
-        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4)
+        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4, random_state=42)
         stratifiedShuffleSplit.get_n_splits(X, y)
         train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat)) 
         
@@ -375,6 +376,10 @@ class GridSearchNestedCVEvaluation:
         if ('urf' in methodName) or ('relieff' == methodName):
             param_grid = {
                 'feature_selector__n_features_to_select': self.featureNumbers,
+            }
+        elif methodName == 'pearson' or methodName == 'spearman':
+            param_grid = {
+                'feature_selector__threashold': self.thresholds,
             }
         else:
             param_grid = {
