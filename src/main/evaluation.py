@@ -476,9 +476,17 @@ class GridSearchNestedCVEvaluation:
 
 class HybridFsEvaluator:
     def __init__(self) -> None:
-        pass
+        self.scoring = {
+            'accuracy': accuracy_score,
+            'balanced_accuracy': balanced_accuracy_score,
+            'f1': f1_score,
+            'precision': precision_score,
+            'recall': recall_score,
+            'roc_auc': roc_auc_score,
+            'cohen_kappa': cohen_kappa_score,
+        }
     
-    def evaluateSingle(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):        
+    def evaluateSingle(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):                
         if sufix != '':
             sufix = f'{sufix[1:].replace("_", "-")}'
         
@@ -491,9 +499,7 @@ class HybridFsEvaluator:
         
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-        
-        log.info(f'> {modelName}')
-            
+                    
         pipeline = Pipeline([
             ('standard_scaler', StandardScaler()),
             ('feature_selector_1', decodeMethod(methodName1)),
@@ -515,10 +521,27 @@ class HybridFsEvaluator:
         else:
             pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
         
-        # GridSCV for `featureNo` for 2nd method
-        pipeline.fit(X_train, y_train)
+        # Fit the model and get results
+        pipeline.fit(X_train, y_train) 
         predictions = pipeline.predict(X_test)
-        log.debug(f"Model {modelName} balanced accuracy (test set): {balanced_accuracy_score(y_test, predictions)}.")
+        TN, FP, FN, TP = confusion_matrix(y_test, predictions).ravel()
+        data = {
+            'name': f"{methodName1}/{methodName2}/{modelName}{sufix}",
+            'params': [featureNumber1, featureNumber2],
+            'TN': float(TN),
+            'FP': float(FP),
+            'FN': float(FN), 
+            'TP': float(TP),
+        }
+        
+        for score in self.scoring.keys():
+            data = {
+                **data,
+                score: float(self.scoring[score](y_test, predictions))
+            }
+            log.debug(f" > Model {data['name']} {score} (test set): {data[score]}.")
+        
+        return data.copy()
 
 class FusionFsEvaluator:
     def __init__(self) -> None:

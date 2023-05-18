@@ -89,7 +89,7 @@ def runPicaiHybridEvaluation(sufix=''):
                                                      featureNumber2=13,
                                                      modelName='rf', 
                                                      sufix=sufix)
-        # json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/hybrid_evaluation{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+        json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/hybrid_evaluation{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
 
     except Exception as e:
         log.exception(e)
@@ -168,11 +168,11 @@ if __name__ == '__main__':
     # Single run on original data
     # runPicaiEvaluation()
     # Full analysis
-    executeOriginalAnalysis()  
+    # executeOriginalAnalysis()  
     
     ## Hybrid analysis
     # Single run on original data
-    # runPicaiHybridEvaluation()
+    runPicaiHybridEvaluation()
     # Full analysis
     # executeHybridAnalysis()
     
