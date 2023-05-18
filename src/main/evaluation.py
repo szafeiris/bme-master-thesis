@@ -379,7 +379,7 @@ class GridSearchNestedCVEvaluation:
             }
         elif methodName == 'pearson' or methodName == 'spearman':
             param_grid = {
-                'feature_selector__threashold': self.thresholds,
+                'feature_selector__threshold': self.thresholds,
             }
         else:
             param_grid = {
@@ -486,7 +486,21 @@ class HybridFsEvaluator:
             'cohen_kappa': cohen_kappa_score,
         }
     
-    def evaluateSingle(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):                
+    def evaluateOptimals(self, X, y, yStrat, sufix=''):                
+        if sufix != '':
+            sufix = f'{sufix[1:].replace("_", "-")}'
+        
+        method1Names = ['pearson', 'spearman']
+        optimalThresholds = [0.95, 0.7]
+        optimalMethod2 = 'cmim'
+        optimalMethod2FeatureNo = 78
+        optimalModel = 'xgb'
+        
+        for combo in zip(method1Names, optimalThresholds):
+            res = self.evaluateSingle(X, y, yStrat, combo[0], combo[1], optimalMethod2, optimalMethod2FeatureNo, optimalModel, sufix='')
+            json.dump(res, open(f'{conf.RESULTS_DIR}/hybrid_optimals_{combo[0]}|{optimalMethod2}|{optimalModel}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+            
+    def evaluateSingle(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):
         if sufix != '':
             sufix = f'{sufix[1:].replace("_", "-")}'
         
@@ -522,16 +536,16 @@ class HybridFsEvaluator:
             pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
         
         # Fit the model and get results
-        pipeline.fit(X_train, y_train) 
+        pipeline.fit(X_train, y_train)
         predictions = pipeline.predict(X_test)
         TN, FP, FN, TP = confusion_matrix(y_test, predictions).ravel()
         data = {
             'name': f"{methodName1}/{methodName2}/{modelName}{sufix}",
             'params': [featureNumber1, featureNumber2],
-            'TN': float(TN),
-            'FP': float(FP),
-            'FN': float(FN), 
-            'TP': float(TP),
+            'TN': int(TN),
+            'FP': int(FP),
+            'FN': int(FN), 
+            'TP': int(TP),
         }
         
         for score in self.scoring.keys():
@@ -620,10 +634,10 @@ class FusionFsEvaluator:
                 'recall_score': float(recall_score(y_test, predictions)),
                 'roc_auc_score': float(roc_auc_score(y_test, predictions)),
                 'cohen_kappa_score': float(cohen_kappa_score(y_test, predictions)),
-                'TN': float(TN),
-                'FP': float(FP),
-                'FN': float(FN), 
-                'TP': float(TP),
+                'TN': int(TN),
+                'FP': int(FP),
+                'FN': int(FN), 
+                'TP': int(TP),
             }
             
             evaluationResults = {
