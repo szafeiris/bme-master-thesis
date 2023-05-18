@@ -515,7 +515,7 @@ class HybridFsEvaluator:
             optimalMethod2FeatureNo = 73
             optimalModel = 'xgb'
         
-        optimalMethod2 = 'lasso'
+        optimalMethod2 = 'boruta'
         
         for combo in zip(method1Names, optimalThresholds):
             res = self.evaluateSingle(X, y, yStrat, combo[0], combo[1], optimalMethod2, optimalMethod2FeatureNo, optimalModel, sufix='')
