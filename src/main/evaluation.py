@@ -575,6 +575,63 @@ class HybridFsEvaluator:
             log.debug(f" > Model {data['name']} {score} (test set): {data[score]}.")
         
         return data.copy()
+    
+    def evaluateSingleWithGSCV(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):
+        if sufix != '':
+            sufix = f'{sufix[1:].replace("_", "-")}'
+        
+        log.info(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
+        send_to_telegram(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
+
+        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4, random_state=42)
+        stratifiedShuffleSplit.get_n_splits(X, y)
+        train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat)) 
+        
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+                    
+        pipeline = Pipeline([
+            ('standard_scaler', StandardScaler()),
+            ('feature_selector_1', decodeMethod(methodName1)),
+            ('feature_selector_2', decodeMethod(methodName2)),
+            ('classifier', decodeModel(modelName))
+        ])
+
+        if ('urf' in methodName1) or ('relieff' == methodName1):
+            pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
+        elif methodName1 == 'pearson' or methodName1 == 'spearman' or methodName1 == 'kendall':
+            pipeline.named_steps['feature_selector_1'].set_params(threshold=featureNumber1)
+        else:
+            pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
+
+        if ('urf' in methodName2) or ('relieff' == methodName2):
+            pipeline.named_steps['feature_selector_2'].set_params(n_features_to_select=featureNumber2)
+        elif methodName2 == 'pearson' or methodName2 == 'spearman' or methodName1 == 'kendall':
+            pipeline.named_steps['feature_selector_2'].set_params(threshold=featureNumber2)
+        else:
+            pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
+        
+        # Fit the model and get results
+        pipeline.fit(X_train, y_train)
+        predictions = pipeline.predict(X_test)
+        TN, FP, FN, TP = confusion_matrix(y_test, predictions).ravel()
+        data = {
+            'name': f"{methodName1}/{methodName2}/{modelName}{sufix}",
+            'params': [featureNumber1, featureNumber2],
+            'TN': int(TN),
+            'FP': int(FP),
+            'FN': int(FN), 
+            'TP': int(TP),
+        }
+        
+        for score in self.scoring.keys():
+            data = {
+                **data,
+                score: float(self.scoring[score](y_test, predictions))
+            }
+            log.debug(f" > Model {data['name']} {score} (test set): {data[score]}.")
+        
+        return data.copy()
 
 class FusionFsEvaluator:
     def __init__(self) -> None:
