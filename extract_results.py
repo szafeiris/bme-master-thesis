@@ -21,7 +21,7 @@ def mergeResults(resultsBase='./**'):
             continue
         
         evaluationResults = [evaluationResult for evaluationResult in path.glob("*.json") if 'evaluation' not in evaluationResult.absolute().name]
-        print(path.name, len(evaluationResults))
+        # print(path.name, len(evaluationResults))
         datasetResults = {}
         for evaluationResult in evaluationResults:
             datasetResults = {
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     
     
     for dataset in mergedResults.keys():
-        print(dataset, len(mergedResults[dataset].keys()))
+        # print(dataset, len(mergedResults[dataset].keys()))
         # print(mergedResults[dataset].keys())
         
         data = []
@@ -78,8 +78,12 @@ if __name__ == "__main__":
             # print(mergedResults[dataset][key]['best_method_params'])
             
             # Get number of selected features
+            selectedThreshold = 0
             if 'surf' in key or 'relief' in key:
                 selectedFeaturesNo = mergedResults[dataset][key]['best_method_params']['n_features_to_select']
+            elif ('pearson' in key or 'spearman' in key) and (not 'itmo' in key):
+                selectedThreshold = mergedResults[dataset][key]['best_method_params']['threshold']
+                selectedFeaturesNo = len(mergedResults[dataset][key]['best_method_params']['selectedFeatures'])
             else:
                 selectedFeatures = mergedResults[dataset][key]['best_method_params']['selectedFeatures']
                 selectedFeaturesNo = len(selectedFeatures)
@@ -88,6 +92,7 @@ if __name__ == "__main__":
             evaluationResultsDict = {
                 **evaluationResultsDict,
                 'selectedFeaturesNo': selectedFeaturesNo,
+                'selectedThreshold': selectedThreshold,
             }
             
             yTrue = np.array(mergedResults[dataset][key]['test_labels'])
