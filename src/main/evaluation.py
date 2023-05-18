@@ -488,17 +488,18 @@ class HybridFsEvaluator:
     
     def evaluateOptimals(self, X, y, yStrat, sufix=''):                       
         method1Names = ['pearson', 'spearman']
-        optimalThresholds = [0.85, 0.85]
+        optimalThresholds = [0.7, 0.7]
         
         if sufix == '_norm':
-            optimalMethod2 = 'pearson'
-            optimalMethod2FeatureNo = 0.95
+            optimalMethod2 = 'multisurf'
+            optimalMethod2FeatureNo = 13
             optimalModel = 'svm-linear'
         elif sufix == '_n4':
             optimalMethod2 = 'relieff'
             optimalMethod2FeatureNo = 68
             optimalModel = 'knn'
         elif sufix == '_n4_norm':
+            optimalThresholds = [0.85, 0.85]
             optimalMethod2 = 'mrmr'
             optimalMethod2FeatureNo = 23
             optimalModel = 'rf'
@@ -507,15 +508,15 @@ class HybridFsEvaluator:
             optimalMethod2FeatureNo = 23
             optimalModel = 'rf'
         elif sufix == '_muscle':
+            optimalThresholds = [0.75, 0.75]
             optimalMethod2 = 'multisurf'
             optimalMethod2FeatureNo = 18
             optimalModel = 'svm-rbf'
         else: # original
+            optimalThresholds = [0.85, 0.85]
             optimalMethod2 = 'cmim'
             optimalMethod2FeatureNo = 73
             optimalModel = 'xgb'
-        
-        optimalMethod2 = 'boruta'
         
         for combo in zip(method1Names, optimalThresholds):
             res = self.evaluateSingle(X, y, yStrat, combo[0], combo[1], optimalMethod2, optimalMethod2FeatureNo, optimalModel, sufix='')
