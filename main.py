@@ -82,13 +82,14 @@ def runPicaiHybridEvaluation(sufix=''):
 
         # Configure evaluation
         evaluator = HybridFsEvaluator()
-        evaluationResults = evaluator.evaluateSingleWithGSCV(X, y, yStrat,
-                                                             'pearson', 
-                                                             0.95, 
-                                                             'multisurf',
-                                                             13, 
-                                                             'rf',
-                                                             sufix=sufix)
+        # evaluationResults = evaluator.evaluateSingleWithGSCV(X, y, yStrat,
+        #                                                      'pearson', 
+        #                                                      0.95, 
+        #                                                      'multisurf',
+        #                                                      13, 
+        #                                                      'rf',
+        #                                                      sufix=sufix)
+        evaluationResults = evaluator.evaluateOptimals(X, y, yStrat, sufix=sufix)
         json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/hybrid_evaluation_optimals{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
 
     except Exception as e:

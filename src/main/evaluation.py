@@ -488,7 +488,7 @@ class HybridFsEvaluator:
     
     def evaluateOptimals(self, X, y, yStrat, sufix=''):                       
         method1Names = ['pearson', 'spearman']
-        optimalThresholds = [0.95, 0.95]
+        optimalThresholds = [0.85, 0.85]
         
         if sufix == '_norm':
             optimalMethod2 = 'pearson'
@@ -514,6 +514,8 @@ class HybridFsEvaluator:
             optimalMethod2 = 'cmim'
             optimalMethod2FeatureNo = 73
             optimalModel = 'xgb'
+        
+        optimalMethod2 = 'lasso'
         
         for combo in zip(method1Names, optimalThresholds):
             res = self.evaluateSingle(X, y, yStrat, combo[0], combo[1], optimalMethod2, optimalMethod2FeatureNo, optimalModel, sufix='')
