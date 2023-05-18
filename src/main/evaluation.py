@@ -486,19 +486,38 @@ class HybridFsEvaluator:
             'cohen_kappa': cohen_kappa_score,
         }
     
-    def evaluateOptimals(self, X, y, yStrat, sufix=''):                
-        if sufix != '':
-            sufix = f'{sufix[1:].replace("_", "-")}'
-        
+    def evaluateOptimals(self, X, y, yStrat, sufix=''):                       
         method1Names = ['pearson', 'spearman']
-        optimalThresholds = [0.95, 0.7]
-        optimalMethod2 = 'cmim'
-        optimalMethod2FeatureNo = 78
-        optimalModel = 'xgb'
+        optimalThresholds = [0.95, 0.95]
+        
+        if sufix == '_norm':
+            optimalMethod2 = 'pearson'
+            optimalMethod2FeatureNo = 0.95
+            optimalModel = 'svm-linear'
+        elif sufix == '_n4':
+            optimalMethod2 = 'relieff'
+            optimalMethod2FeatureNo = 68
+            optimalModel = 'knn'
+        elif sufix == '_n4_norm':
+            optimalMethod2 = 'mrmr'
+            optimalMethod2FeatureNo = 23
+            optimalModel = 'rf'
+        elif sufix == '_fat':
+            optimalMethod2 = 'mrmr'
+            optimalMethod2FeatureNo = 23
+            optimalModel = 'rf'
+        elif sufix == '_muscle':
+            optimalMethod2 = 'multisurf'
+            optimalMethod2FeatureNo = 18
+            optimalModel = 'svm-rbf'
+        else: # original
+            optimalMethod2 = 'cmim'
+            optimalMethod2FeatureNo = 73
+            optimalModel = 'xgb'
         
         for combo in zip(method1Names, optimalThresholds):
             res = self.evaluateSingle(X, y, yStrat, combo[0], combo[1], optimalMethod2, optimalMethod2FeatureNo, optimalModel, sufix='')
-            json.dump(res, open(f'{conf.RESULTS_DIR}/hybrid_optimals_{combo[0]}|{optimalMethod2}|{optimalModel}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+            json.dump(res, open(f'{conf.RESULTS_DIR}/hybrid_optimals_{combo[0]}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
             
     def evaluateSingle(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):
         if sufix != '':
