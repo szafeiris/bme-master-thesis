@@ -538,16 +538,16 @@ class HybridFsEvaluator:
         elif sufix == '_n4_norm':
             optimalThresholds = [0.85, 0.85]
             optimalMethod2 = 'mrmr'
-            optimalMethod2FeatureNo = 140
+            optimalMethod2FeatureNo = 252
             optimalModel = 'rf'
         elif sufix == '_fat':
             optimalMethod2 = 'mrmr'
             optimalModel = 'rf'
-            optimalMethod2FeatureNo = 178
+            optimalMethod2FeatureNo = 148
         elif sufix == '_muscle':
             optimalThresholds = [0.75, 0.75]
             optimalMethod2 = 'multisurf'
-            optimalMethod2FeatureNo = 147
+            optimalMethod2FeatureNo = 178
             optimalModel = 'svm-rbf'
         else: # original
             optimalThresholds = [0.85, 0.85]
