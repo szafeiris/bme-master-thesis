@@ -521,6 +521,43 @@ class HybridFsEvaluator:
         for combo in zip(method1Names, optimalThresholds):
             res = self.evaluateSingle(X, y, yStrat, combo[0], combo[1], optimalMethod2, optimalMethod2FeatureNo, optimalModel, sufix='')
             json.dump(res, open(f'{conf.RESULTS_DIR}/hybrid_optimals_{combo[0]}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+    
+    def evaluateOptimalsGsCV(self, X, y, yStrat, sufix=''):                       
+        method1Names = ['pearson', 'spearman']
+        optimalThresholds = [0.7, 0.7]
+        optimalMethod2FeatureNo = 100
+        
+        if sufix == '_norm':
+            optimalMethod2 = 'multisurf'
+            optimalMethod2FeatureNo = 143
+            optimalModel = 'svm-linear'
+        elif sufix == '_n4':
+            optimalMethod2 = 'relieff'
+            optimalMethod2FeatureNo = 97
+            optimalModel = 'knn'
+        elif sufix == '_n4_norm':
+            optimalThresholds = [0.85, 0.85]
+            optimalMethod2 = 'mrmr'
+            optimalMethod2FeatureNo = 140
+            optimalModel = 'rf'
+        elif sufix == '_fat':
+            optimalMethod2 = 'mrmr'
+            optimalModel = 'rf'
+            optimalMethod2FeatureNo = 178
+        elif sufix == '_muscle':
+            optimalThresholds = [0.75, 0.75]
+            optimalMethod2 = 'multisurf'
+            optimalMethod2FeatureNo = 147
+            optimalModel = 'svm-rbf'
+        else: # original
+            optimalThresholds = [0.85, 0.85]
+            optimalMethod2 = 'cmim'
+            optimalMethod2FeatureNo = 175
+            optimalModel = 'xgb'
+        
+        for combo in zip(method1Names, optimalThresholds):
+            res = self.evaluateSingleWithGSCV(X, y, yStrat, combo[0], combo[1], optimalMethod2, optimalMethod2FeatureNo, optimalModel, sufix='')
+            json.dump(res, open(f'{conf.RESULTS_DIR}/hybrid_optimals_{combo[0]}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
             
     def evaluateSingle(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):
         if sufix != '':
@@ -579,7 +616,7 @@ class HybridFsEvaluator:
         
         return data.copy()
     
-    def evaluateSingleWithGSCV(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):
+    def evaluateSingleWithGSCV(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureStop, modelName, sufix=''):
         if sufix != '':
             sufix = f'{sufix[1:].replace("_", "-")}'
         
@@ -608,19 +645,48 @@ class HybridFsEvaluator:
             pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
 
         if ('urf' in methodName2) or ('relieff' == methodName2):
-            pipeline.named_steps['feature_selector_2'].set_params(n_features_to_select=featureNumber2)
+            param_grid = {
+                'feature_selector_2__n_features_to_select': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
+            }
+        elif methodName2 == 'boruta' or methodName2 == 'lasso':
+            param_grid = {}
         elif methodName2 == 'pearson' or methodName2 == 'spearman' or methodName1 == 'kendall':
-            pipeline.named_steps['feature_selector_2'].set_params(threshold=featureNumber2)
+            param_grid = {
+                'feature_selector_2__threshold': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
+            }
         else:
-            pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
+            param_grid = {
+                'feature_selector_2__nFeatures': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
+            }
         
-        # Fit the model and get results
-        pipeline.fit(X_train, y_train)
-        predictions = pipeline.predict(X_test)
+        
+        grid = GridSearchCV(
+            pipeline,
+            param_grid,
+            scoring = {
+                'auc': 'roc_auc',
+                'accuracy': make_scorer(accuracy_score),
+                'balanced_accuracy': make_scorer(balanced_accuracy_score),
+                'f1': make_scorer(f1_score),
+                'precision': make_scorer(precision_score),
+                'recall': make_scorer(recall_score),
+                'roc_auc': make_scorer(roc_auc_score),
+                'cohen_kappa': make_scorer(cohen_kappa_score),
+            },
+            cv=5,
+            refit="auc",
+            verbose=0,
+            n_jobs=-1,
+            return_train_score=True
+        )
+   
+        # Fit the model using grid search 
+        grid.fit(X_train, y_train)
+        predictions = grid.predict(X_test)
         TN, FP, FN, TP = confusion_matrix(y_test, predictions).ravel()
         data = {
             'name': f"{methodName1}/{methodName2}/{modelName}{sufix}",
-            'params': [featureNumber1, featureNumber2],
+            'params': [featureNumber1, grid.best_params_[list(grid.best_params_.keys())[0]]],
             'TN': int(TN),
             'FP': int(FP),
             'FN': int(FN), 
