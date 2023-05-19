@@ -9,6 +9,7 @@ from sklearn.model_selection import *
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.ensemble import StackingClassifier
+from sklearn.linear_model import LogisticRegression
 
 import numpy as np
 import progressbar
@@ -445,7 +446,7 @@ class GridSearchNestedCVEvaluation:
                 pipeline,
                 param_grid,
                 scoring=scoring,
-                cv=5,
+                cv=4,
                 refit="auc",
                 verbose=0,
                 n_jobs=-1,
@@ -679,7 +680,7 @@ class HybridFsEvaluator:
                 'roc_auc': make_scorer(roc_auc_score),
                 'cohen_kappa': make_scorer(cohen_kappa_score),
             },
-            cv=5,
+            cv=4,
             refit="auc",
             verbose=0,
             n_jobs=-1,
@@ -726,58 +727,64 @@ class FusionFsEvaluator:
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
         
-        estimators = [
-            ('cmim-xgb', make_pipeline(
-                StandardScaler(),
-                MultivariateIFsAlgorithm('CMIM', 73),
-                decodeModel('xgb')
-                )
-            ),
-            ('mrmr-rf', make_pipeline(
-                StandardScaler(),
-                MultivariateIFsAlgorithm('MRMR', 23),
-                decodeModel('rf')
-                )
-            ),
-            ('multisurf-gnb', make_pipeline(
-                StandardScaler(),
-                MultiSURF(13),
-                decodeModel('gnb')
-                )
-            ),
-            ('multisurf-svm-rbf', make_pipeline(
-                StandardScaler(),
-                MultiSURF(18),
-                decodeModel('svm-rbf')
-                )
-            ),
-            ('relieff-knn', make_pipeline(
-                StandardScaler(),
-                ReliefF(68),
-                decodeModel('knn')
-                )
-            ),
-        ]
         
         evaluationResults = {}
         for classifier in ALGORITHMS['MODELS']:
+            log.info(f'Fusion{sufix} - {classifier}.')
+            send_to_telegram(f'Fusion{sufix} - {classifier}.')
+            
+            if sufix == '_norm':
+                estimators = [
+                    ('svm-linear', decodeModel('svm-linear')),
+                    ('gnb', decodeModel('gnb')),
+                ]
+            elif sufix == '_n4':
+                estimators = [
+                    ('knn', decodeModel('knn')),
+                    ('xgb', decodeModel('xgb')),
+                ]
+            elif sufix == '_n4_norm':
+                estimators = [
+                    ('rf', decodeModel('rf')),
+                    ('xgb', decodeModel('xgb')),
+                ]
+            elif sufix == '_fat':
+                estimators = [
+                    ('rf', decodeModel('rf')),
+                    ('svm-rbf', decodeModel('svm-rbf')),
+                ]
+            elif sufix == '_muscle':
+                estimators = [
+                    ('svm-rbf', decodeModel('svm-rbf')),
+                    ('rf', decodeModel('rf')),
+                ]
+            else: # original
+                estimators = [
+                    ('svm-linear', decodeModel('svm-linear')),
+                    ('xgb', decodeModel('xgb')),
+                ]
+            
             stackingClassifier = StackingClassifier(
                 estimators=estimators,
                 final_estimator=decodeModel(classifier),
-                cv=4, verbose=2, n_jobs=-1
+                cv=5, verbose=0, n_jobs=-1
             )  
-        
-            stackingClassifier.fit(X_train, y_train)
-            predictions = stackingClassifier.predict(X_test)
+
+            method = 'pearson'
+            threshold = 0.70
+            
+            pipeline = Pipeline([
+                ('standard_scaler', StandardScaler()),
+                ('feature_selector', decodeMethod(method)),
+                ('classifier', stackingClassifier)
+            ])
+            pipeline.named_steps['feature_selector'].set_params(threshold=threshold)
+            
+            pipeline.fit(X_train, y_train)
+            predictions = pipeline.predict(X_test)
             TN, FP, FN, TP = confusion_matrix(y_test, predictions).ravel()
         
-            data = {}
-            data['test_predictions'] = predictions
-            data['test_labels'] = y_test
-            data['test_labels_strat'] = yStrat[test_index]
-            data['classification_report'] = classification_report(y_test, predictions)
             data = {
-                **data,   
                 'accuracy_score': float(accuracy_score(y_test, predictions)),
                 'balanced_accuracy_score': float(balanced_accuracy_score(y_test, predictions)),
                 'f1_score': float(f1_score(y_test, predictions)),
@@ -791,10 +798,21 @@ class FusionFsEvaluator:
                 'TP': int(TP),
             }
             
+            log.debug(f'Fusion{sufix} - {classifier}. Balanced accuracy: {data["balanced_accuracy_score"]}.')
+            
             evaluationResults = {
                 **evaluationResults,
                 classifier: data.copy()
             }
         
+        evaluationResults = {
+            'method': method,
+            'threshold': threshold,
+            **evaluationResults
+        }
+        
+        log.info(f'End of fusion{sufix}.')
+        send_to_telegram(f'End of fusion{sufix}.')
+
         return evaluationResults
         
