@@ -555,6 +555,8 @@ class HybridFsEvaluator:
             optimalMethod2 = 'cmim'
             optimalMethod2FeatureNo = 175
             optimalModel = 'xgb'
+            
+        optimalThresholds = [0.95, 0.95]
         
         for combo in zip(method1Names, optimalThresholds):
             log.info(f'Started: hybrid_optimals_{combo[0]}{sufix}')
