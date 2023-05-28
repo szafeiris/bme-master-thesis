@@ -476,7 +476,7 @@ class GridSearchNestedCVEvaluation:
         return data.copy()
 
 class HybridFsEvaluator:
-    def __init__(self) -> None:
+    def __init__(self, train_index, test_index) -> None:
         self.scoring = {
             'accuracy': accuracy_score,
             'balanced_accuracy': balanced_accuracy_score,
@@ -486,6 +486,9 @@ class HybridFsEvaluator:
             'roc_auc': roc_auc_score,
             'cohen_kappa': cohen_kappa_score,
         }
+        
+        self.train_index = train_index
+        self.test_index = test_index
     
     def evaluateOptimals(self, X, y, yStrat, sufix=''):                       
         method1Names = ['pearson', 'spearman']
@@ -574,13 +577,9 @@ class HybridFsEvaluator:
         
         log.info(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
         send_to_telegram(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
-
-        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4, random_state=42)
-        stratifiedShuffleSplit.get_n_splits(X, y)
-        train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat)) 
         
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+        X_train, X_test = X[self.train_index], X[self.test_index]
+        y_train, y_test = y[self.train_index], y[self.test_index]
                     
         pipeline = Pipeline([
             ('standard_scaler', StandardScaler()),
@@ -630,14 +629,10 @@ class HybridFsEvaluator:
             sufix = f'{sufix[1:].replace("_", "-")}'
         
         log.info(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
-        send_to_telegram(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
-
-        stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4, random_state=42)
-        stratifiedShuffleSplit.get_n_splits(X, y)
-        train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat)) 
+        send_to_telegram(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.') 
         
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+        X_train, X_test = X[self.train_index], X[self.test_index]
+        y_train, y_test = y[self.train_index], y[self.test_index]
                     
         pipeline = Pipeline([
             ('standard_scaler', StandardScaler()),

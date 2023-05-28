@@ -50,12 +50,16 @@ def getBaseData(sufix):
     y[y == 2] = 0   # 0: ISUP = 2,
     y[y > 2] = 1    # 1: ISUP > 2
     
-    return X, y, yStrat, patientIds, radiomicFeaturesNames, sufix
+    stratifiedShuffleSplit = StratifiedShuffleSplit(n_splits=1, test_size=0.4, random_state=42)
+    stratifiedShuffleSplit.get_n_splits(X, y)
+    train_index, test_index = next(stratifiedShuffleSplit.split(X, yStrat))
+    
+    return X, y, yStrat, patientIds, radiomicFeaturesNames, sufix, train_index, test_index
     
 
 def runPicaiEvaluation(sufix=''): 
     try:
-        X, y, yStrat, patientIds, radiomicFeaturesNames, sufix = getBaseData(sufix)
+        X, y, yStrat, patientIds, radiomicFeaturesNames, sufix, train_index, test_index = getBaseData(sufix)
 
         # Configure evaluation
         args = {
@@ -78,10 +82,11 @@ def runPicaiEvaluation(sufix=''):
 
 def runPicaiHybridEvaluation(sufix=''): 
     try:
-        X, y, yStrat, patientIds, radiomicFeaturesNames, sufix = getBaseData(sufix)
+        X, y, yStrat, patientIds, radiomicFeaturesNames, sufix, train_index, test_index = getBaseData(sufix)
 
         # Configure evaluation
-        evaluator = HybridFsEvaluator()
+        evaluator = HybridFsEvaluator(train_index, test_index)
+        evaluationResults = evaluator.evaluateOptimals(X, y, yStrat, sufix=sufix)
         # evaluationResults = evaluator.evaluateSingleWithGSCV(X, y, yStrat,
         #                                                      'pearson', 
         #                                                      0.85, 
@@ -89,7 +94,7 @@ def runPicaiHybridEvaluation(sufix=''):
         #                                                      100, 
         #                                                      'rf',
         #                                                      sufix=sufix)
-        evaluationResults = evaluator.evaluateOptimalsGsCV(X, y, yStrat, sufix=sufix)
+        # evaluationResults = evaluator.evaluateOptimalsGsCV(X, y, yStrat, sufix=sufix)
         # json.dump(evaluationResults, open(f'{conf.RESULTS_DIR}/hybrid_evaluation_optimals_gscv{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
 
     except Exception as e:
@@ -101,7 +106,7 @@ def runPicaiHybridEvaluation(sufix=''):
 
 def runPicaiFusionEvaluation(sufix=''): 
     try:
-        X, y, yStrat, patientIds, radiomicFeaturesNames, sufix = getBaseData(sufix)
+        X, y, yStrat, patientIds, radiomicFeaturesNames, sufix, train_index, test_index = getBaseData(sufix)
 
         # Configure evaluation
         evaluator = FusionFsEvaluator()
