@@ -559,14 +559,14 @@ class HybridFsEvaluator:
             optimalMethod2FeatureNo = 175
             optimalModel = 'xgb'
             
-        optimalThresholds = [0.95, 0.95]
+        # optimalThresholds = [0.95, 0.95]
         
         for combo in zip(method1Names, optimalThresholds):
             log.info(f'Started: hybrid_optimals_{combo[0]}{sufix}')
             send_to_telegram(f'Started: hybrid_optimals_{combo[0]}{sufix}')
             
             res = self.evaluateSingleWithGSCV(X, y, yStrat, combo[0], combo[1], optimalMethod2, optimalMethod2FeatureNo, optimalModel, sufix='')
-            json.dump(res, open(f'{conf.RESULTS_DIR}/hybrid_optimals_{combo[0]}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+            json.dump(res, open(f'{conf.RESULTS_DIR}/hybrid_optimals_cv_{combo[0]}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
             
             log.info(f'Ended: hybrid_optimals_{combo[0]}{sufix}')
             send_to_telegram(f'Ended: hybrid_optimals_{combo[0]}{sufix}')
