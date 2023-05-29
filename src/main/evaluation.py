@@ -677,15 +677,16 @@ class HybridFsEvaluator:
                 'roc_auc': make_scorer(roc_auc_score),
                 'cohen_kappa': make_scorer(cohen_kappa_score),
             },
-            cv=4,
-            refit="auc",
+            cv=[(self.train_index, self.test_index)],
+            refit="balanced_accuracy",
             verbose=0,
             n_jobs=-1,
             return_train_score=True
         )
    
         # Fit the model using grid search 
-        grid.fit(X_train, y_train)
+        # grid.fit(X_train, y_train)
+        grid.fit(X, y)
         predictions = grid.predict(X_test)
         TN, FP, FN, TP = confusion_matrix(y_test, predictions).ravel()
         data = {
