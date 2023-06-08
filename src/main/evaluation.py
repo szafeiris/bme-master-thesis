@@ -525,6 +525,7 @@ class HybridFsEvaluator:
         for combo in zip(method1Names, optimalThresholds):
             res = self.evaluateSingle(X, y, yStrat, combo[0], combo[1], optimalMethod2, optimalMethod2FeatureNo, optimalModel, sufix='')
             json.dump(res, open(f'{conf.RESULTS_DIR}/hybrid_optimals_{combo[0]}{sufix}.json', 'w'), cls=NumpyArrayEncoder, sort_keys=True, indent=1)
+            break
     
     def evaluateOptimalsGsCV(self, X, y, yStrat, sufix=''):                       
         method1Names = ['pearson', 'spearman']
@@ -570,6 +571,8 @@ class HybridFsEvaluator:
             
             log.info(f'Ended: hybrid_optimals_{combo[0]}{sufix}')
             send_to_telegram(f'Ended: hybrid_optimals_{combo[0]}{sufix}')
+            
+            break
             
     def evaluateSingle(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):
         if sufix != '':
@@ -641,25 +644,44 @@ class HybridFsEvaluator:
             ('classifier', decodeModel(modelName))
         ])
 
+        param_grid = {}
+        # if ('urf' in methodName1) or ('relieff' == methodName1):
+        #     pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
+        # elif methodName1 == 'pearson' or methodName1 == 'spearman' or methodName1 == 'kendall':
+        #     pipeline.named_steps['feature_selector_1'].set_params(threshold=featureNumber1)
+        # else:
+        #     pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
+        
         if ('urf' in methodName1) or ('relieff' == methodName1):
-            pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
+            param_grid = {
+                'feature_selector_1__n_features_to_select': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
+            }
         elif methodName1 == 'pearson' or methodName1 == 'spearman' or methodName1 == 'kendall':
-            pipeline.named_steps['feature_selector_1'].set_params(threshold=featureNumber1)
+            param_grid = {
+                'feature_selector_1__threshold': [0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
+            }
         else:
-            pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
+            param_grid = {
+                'feature_selector_1__nFeatures': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
+            }
 
         if ('urf' in methodName2) or ('relieff' == methodName2):
             param_grid = {
+                **param_grid,
                 'feature_selector_2__n_features_to_select': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
             }
         elif methodName2 == 'boruta' or methodName2 == 'lasso':
-            param_grid = {}
+            param_grid = {
+                **param_grid,
+            }
         elif methodName2 == 'pearson' or methodName2 == 'spearman' or methodName1 == 'kendall':
             param_grid = {
+                **param_grid,
                 'feature_selector_2__threshold': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
             }
         else:
             param_grid = {
+                **param_grid,
                 'feature_selector_2__nFeatures': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
             }
         
@@ -677,7 +699,8 @@ class HybridFsEvaluator:
                 'roc_auc': make_scorer(roc_auc_score),
                 'cohen_kappa': make_scorer(cohen_kappa_score),
             },
-            cv=[(self.train_index, self.test_index)],
+            # cv=[(self.train_index, self.test_index)],
+            cv=3,
             refit="balanced_accuracy",
             verbose=0,
             n_jobs=-1,
