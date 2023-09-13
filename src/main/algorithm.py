@@ -1,5 +1,5 @@
 from sklearn.linear_model import Lasso
-from src.main.configurator import log
+from main.configuration import log
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.exceptions import NotFittedError

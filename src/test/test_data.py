@@ -1,7 +1,7 @@
 import pytest
 import os
 from main.data import *
-from main.configurator import configurator as conf
+from main.configuration import configurator as conf
 
 sample_dicom_image = os.path.join(conf.IMAGES_DIR, 'NSCLC_Radiogenomics/R01-001/09-06-1990-NA-CT CHEST ABD PELVIS WITH CON-98785/3.000000-THORAX 1.0 B45f-95741/1-001.dcm')
 sample_dicom_directory = os.path.join(conf.IMAGES_DIR, 'NSCLC_Radiogenomics/R01-001/09-06-1990-NA-CT CHEST ABD PELVIS WITH CON-98785/3.000000-THORAX 1.0 B45f-95741/')

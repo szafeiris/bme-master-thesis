@@ -1,5 +1,5 @@
 from sklearn.preprocessing import StandardScaler
-from .configurator import configurator as conf, log
+from .configuration import configurator as conf, log
 from .data import *
 from .algorithm import *
 from .notification import send_to_telegram

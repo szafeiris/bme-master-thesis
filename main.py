@@ -1,4 +1,4 @@
-from src.main.configurator import configurator as conf, log
+from main.configuration import configurator as conf, log
 from src.main.data import *
 from src.main.evaluation import *
 from src.main.notification import send_to_telegram

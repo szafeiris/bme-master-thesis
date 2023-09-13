@@ -1,4 +1,4 @@
-from . import configurator as conf, log
+from . import configuration as conf, log
 from .converter import NiftyConverter
 from .extractor import RadiomicExtractor, MultiLabelRadiomicExtractor
 import abc

@@ -1,5 +1,5 @@
 import pytest
-from main.configurator import configurator as conf
+from main.configuration import configurator as conf
 
 def test_conf_in_operator_exists():
     assert 'LOG_LEVEL' in conf
