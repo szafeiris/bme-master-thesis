@@ -29,6 +29,7 @@ ITMO_UV_METHODS = {
 
 ITMO_MV_METHODS = ['MIFS', 'JMI', 'CMIM', 'MRMR']
 
+## Algorithms implemented are stored here
 ALGORITHMS = {
     'FS_METHODS': ['relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar', 'boruta', 'lasso'],
     'MODELS': ['svm-linear', 'svm-rbf', 'rf', 'gnb', 'knn', 'xgb']
