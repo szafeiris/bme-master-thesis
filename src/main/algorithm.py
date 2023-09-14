@@ -1,25 +1,38 @@
-from sklearn.linear_model import Lasso
-from main.configuration import log
+from . import log
+
+import pandas as pd
+import numpy as np
+import abc
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.exceptions import NotFittedError
 
-from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import *
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import Lasso
+from sklearn.naive_bayes import *
+from sklearn.svm import SVC
 import xgboost as xgb
 
 from ITMO_FS.filters.univariate import select_k_best, UnivariateFilter, spearman_corr, pearson_corr
 from ITMO_FS.filters.multivariate import MultivariateFilter
 
-from skrebate import ReliefF, SURF, SURFstar, MultiSURF, MultiSURFstar, TuRF
+from skrebate import ReliefF, SURF, SURFstar, MultiSURF, MultiSURFstar
 
 from boruta.boruta_py import BorutaPy
 
-import pandas as pd
-import numpy as np
-import abc
+## ITMO  filter methods
+ITMO_UV_METHODS = {
+    'PEARSON': pearson_corr,
+    'SPEARMAN': spearman_corr
+}
+
+ITMO_MV_METHODS = ['MIFS', 'JMI', 'CMIM', 'MRMR']
+
+ALGORITHMS = {
+    'FS_METHODS': ['relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar', 'boruta', 'lasso'],
+    'MODELS': ['svm-linear', 'svm-rbf', 'rf', 'gnb', 'knn', 'xgb']
+}
 
 class FeatureSelectionAlgorithm(BaseEstimator, TransformerMixin):
     @abc.abstractclassmethod    
@@ -44,15 +57,6 @@ class FeatureSelectionAlgorithm(BaseEstimator, TransformerMixin):
     def __setstate__(self, params):
         self.set_params(**params)
         return self
-
-## ITMO  filter methods
-ITMO_UV_METHODS = {
-    'PEARSON': pearson_corr,
-    'SPEARMAN': spearman_corr
-}
-
-ITMO_MV_METHODS = ['MIFS', 'JMI', 'CMIM', 'MRMR']
-# ITMO_MV_METHODS = ['MIM', 'MRMR', 'JMI', 'CIFE', 'MIFS', 'CMIM', 'ICAP', 'DCSF', 'CFR', 'MRI', 'IWFS']
 
 class ItmoFsAlgorithm(FeatureSelectionAlgorithm):
     def __init__(self, methodName=None, nFeatures=100, **kwargs):
@@ -248,7 +252,6 @@ class BorutaFsAlgorithm(FeatureSelectionAlgorithm):
     def __dict__(self):
         return self.get_params()
 
-
 class LassoFsAlgorithm(FeatureSelectionAlgorithm):
     def __init__(self, alpha=0.14, **kwargs) -> None:
         self.__lasso = Lasso(alpha=alpha, fit_intercept=False, copy_X=True, random_state=42)
@@ -351,16 +354,7 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
     def __dict__(self):
         return self.get_params()
 
-ALGORITHMS = {
-    'FS_METHODS': ['kendall', 'relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar', 'boruta', 'lasso'],
-    'MODELS': ['svm-linear', 'svm-rbf', 'rf', 'gnb', 'knn', 'xgb']
-}
-
 # ## Fill ALGORITHMS dictionary
-# # ITMO Univariate methods
-# for method in ITMO_UV_METHODS:
-#     ALGORITHMS['FS_METHODS'].append(f'{method.lower()}-itmo')
-
 # ITMO Multivariate methods
 for method in ITMO_MV_METHODS:
     ALGORITHMS['FS_METHODS'].append(f'{method.lower()}-itmo')
@@ -402,7 +396,7 @@ def decodeMethod(methodName: str, featureNo=0, params=None):
     elif methodName == 'multisurfstar':
         method = MultiSURFstar(n_jobs=-1)
     else:
-        raise ValueError(f'{methodName} is not supported yet!')
+        raise ValueError(f'{methodName} is not supported.')
     
     if featureNo > 0:
         if ('urf' in methodName) or ('relieff' == methodName):
@@ -430,7 +424,7 @@ def decodeModel(modelName: str, params=None):
     elif modelName == 'xgb':
         model = xgb.XGBClassifier()
     else:
-        raise ValueError(f'{modelName} is not supported yet!')
+        raise ValueError(f'{modelName} is not supported.')
     
     if params:
         model.set_params(**params)
