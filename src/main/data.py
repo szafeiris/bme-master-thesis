@@ -1,4 +1,4 @@
-from . import configuration as conf, log
+from . import configuration as conf, PATHS, log
 from .converter import NiftyConverter
 from .extractor import RadiomicExtractor, MultiLabelRadiomicExtractor
 import abc
@@ -209,7 +209,7 @@ class DataService:
 class PicaiDataService(DataService):
     def __init__(self, dataReader: DataReader = NiftyReader(),
                        dataConverter: NiftyConverter = NiftyConverter(),
-                       radiomicsExtractor=MultiLabelRadiomicExtractor(conf.PICAI_PYRADIOMICS_PARAMS_FILE),
+                       radiomicsExtractor=MultiLabelRadiomicExtractor(PATHS.RADIOMICS_DIR),
                        radiomicReader=RadiomicReader()) -> None:
         super().__init__(dataReader, dataConverter, radiomicsExtractor, radiomicReader)
         
@@ -250,7 +250,7 @@ class PicaiDataService(DataService):
         metadata = pd.read_csv(path)
         return metadata
     
-    def computeBinWidth(self, path=conf.PICAI_NIFTI_IMAGES_DIR, bins=32, sufix=''):
+    def computeBinWidth(self, path=PATHS.PICAI_IMAGES_DIR, bins=32, sufix=''):
         globalMin = 0
         if not os.path.exists(f'ranges{sufix}.npy'):
             ranges = []

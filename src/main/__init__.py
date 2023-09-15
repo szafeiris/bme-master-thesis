@@ -3,5 +3,5 @@ from .configuration import log, PATHS, Datasets, configuration
 # from .converter import *
 # from .extractor import *
 # from .evaluation import *
-# from .notification import *
-# from .algorithm import *
+from .notification import *
+from .algorithm import *

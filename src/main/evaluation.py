@@ -1,5 +1,5 @@
 from sklearn.preprocessing import StandardScaler
-from .configuration import configurator as conf, log
+from . import configuration as conf, log
 from .data import *
 from .algorithm import *
 from .notification import send_to_telegram
@@ -331,8 +331,8 @@ class GridSearchNestedCVEvaluation:
         
         send_to_telegram(f"Evaluation started (images{sufix}).")
         # for combination in [('mifs', 'rf')]:
-        #  for combination in [('mrmr', 'svm-linear')]:
-        for combination in [('pearson', 'svm-linear'), ('pearson', 'svm-rbf'), ('pearson', 'rf'), ('pearson', 'knn'), ('pearson', 'gnb'), ('pearson', 'xgb'), ('spearman', 'svm-linear'), ('spearman', 'svm-rbf'), ('spearman', 'rf'), ('spearman', 'knn'), ('spearman', 'gnb'), ('spearman', 'xgb')]:
+        for combination in [('relieff', 'svm-linear')]:
+        #for combination in [('pearson', 'svm-linear'), ('pearson', 'svm-rbf'), ('pearson', 'rf'), ('pearson', 'knn'), ('pearson', 'gnb'), ('pearson', 'xgb'), ('spearman', 'svm-linear'), ('spearman', 'svm-rbf'), ('spearman', 'rf'), ('spearman', 'knn'), ('spearman', 'gnb'), ('spearman', 'xgb')]:
         # for combination in self.combinations:            
             try:
                 results = self.evaluateSingle(X.copy(), y, yStrat, combination[0], combination[1], sufix=sufix)

@@ -1,4 +1,4 @@
-from main.configuration import configurator as conf, log
+from src.main import configuration as conf, PATHS, log
 from src.main.data import *
 from src.main.evaluation import *
 from src.main.notification import send_to_telegram
@@ -7,24 +7,31 @@ import os
 from glob import glob as g
 from multiprocessing import Process
 
+log.debug("Starting analysis.")
+
+
+exit()
+
 def getBaseData(sufix):
     dataService = PicaiDataService()
 
-    if sufix != '' and sufix[0] != '_':
-        sufix = '_' + sufix
+    # if sufix != '' and sufix[0] != '_':
+    #     sufix = '_' + sufix
     
     # Extract radiomics from images or read them
-    radiomicsFileName = f'{conf.PICAI_RADIOMICS_FILE}{sufix}.csv'
+    radiomicsFileName = PATHS.getRadiomicFile(sufix)
+    log.debug(f'Radiomics file name: {radiomicsFileName}')
     if os.path.exists(radiomicsFileName):
         radiomicFeatures = dataService.readRadiomics(radiomicsFileName)
+        log.info(f'Radiomics file name {radiomicsFileName} loaded.')
     else:
         log.info(f'Generating radiomic features for `images{sufix}`.')
-        binWidth, shiftValue = dataService.computeBinWidth(conf.PICAI_NIFTI_IMAGES_DIR, sufix=sufix)
+        binWidth, shiftValue = dataService.computeBinWidth(PATHS.PICAI_IMAGES_DIR, sufix=sufix)
         log.info(f'Selected bin Width is {binWidth} (Shift: {shiftValue}).')
         radiomicFeatures = dataService.extractRadiomics(conf.PICAI_NIFTI_IMAGES_DIR, radiomicsFileName, binWidth=binWidth, shiftValue=shiftValue, sufix=sufix)
     
     # Create labels for stratification
-    picaiMetadata = dataService.getMetadata(conf.PICAI_METADATA_PATH)    
+    picaiMetadata = dataService.getMetadata(PATHS.PICAI_METADATA_FILE)    
     jointDfs = pd.merge(picaiMetadata, radiomicFeatures, on='Patient_Id')
     conditions = [
         (jointDfs['Label'] == 2) & (jointDfs['Manufacturer'] == 'Philips Medical Systems'),
@@ -172,7 +179,7 @@ def executeFusionAnalysis():
 if __name__ == '__main__':
     ## Original analysis
     # Single run on original data
-    # runPicaiEvaluation()
+    runPicaiEvaluation()
     # Full analysis
     # executeOriginalAnalysis()  
     
@@ -180,7 +187,7 @@ if __name__ == '__main__':
     # Single run on original data
     # runPicaiHybridEvaluation()
     # Full analysis
-    executeHybridAnalysis()
+    # executeHybridAnalysis()
     
     ## Fusion analysis
     # Single run on original data
