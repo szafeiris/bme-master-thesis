@@ -1,8 +1,11 @@
-from .configuration import configuration as conf, log
+from .config import configuration as conf
+from .log import getLogger
+
 import requests
 import json
 
 def send_to_telegram(message):
+    log = getLogger(__name__)
     apiURL = f'https://api.telegram.org/bot{conf.TELEGRAM_TOKEN}/sendMessage'
     try:
         if conf.TELEGRAM_SEND:
@@ -13,7 +16,7 @@ def send_to_telegram(message):
                 response = json.dumps(response.json(), indent=2) if response else '-'
                 log.warning(f"Response from telegram API: \n{response}\n")
         else:
-            log.debug("No request send to telegram API.")
+            log.warning("No request send to telegram API.")
             
     except Exception as e:
         log.error("Could not send telegram notification.")

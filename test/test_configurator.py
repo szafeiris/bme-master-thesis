@@ -1,8 +1,9 @@
 import pytest
-from main.configuration import configurator as conf
+from BMEMasterThesis.utils.config import configuration as conf
 
 def test_conf_in_operator_exists():
-    assert 'LOG_LEVEL' in conf
+    
+    assert hasattr(conf, 'LOG_LEVEL')
 
 def test_conf_in_operator_not_exists():
     assert 'blah' not in conf
