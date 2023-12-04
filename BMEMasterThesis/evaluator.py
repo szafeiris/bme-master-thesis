@@ -9,6 +9,7 @@ from sklearn.pipeline import Pipeline
 
 import numpy as np
 import json
+# import shap
 
 class GridSearchNestedCVEvaluation:
     def __init__(self, **kwargs) -> None:
@@ -34,13 +35,13 @@ class GridSearchNestedCVEvaluation:
         # for combination in [('mifs', 'rf')]:
         #for combination in [('pearson', 'svm-linear'), ('pearson', 'svm-rbf'), ('pearson', 'rf'), ('pearson', 'knn'), ('pearson', 'gnb'), ('pearson', 'xgb'), ('spearman', 'svm-linear'), ('spearman', 'svm-rbf'), ('spearman', 'rf'), ('spearman', 'knn'), ('spearman', 'gnb'), ('spearman', 'xgb')]:
         # for combination in [('boruta', 'svm-linear'), ('lasso', 'svm-linear'), ('relieff', 'svm-linear'), ('mifs', 'svm-linear')]:
-        for combination in [('boruta', 'svm-linear')]:
+        # for combination in [('pearson', 'svm-linear')]:
         
-        # combinations = []
-        # for method in list(ALGORITHMS['FS_METHODS']):
-        #     for model in list(ALGORITHMS['MODELS']):
-        #         self.combinations.append((method, model))
-        # for combination in combinations:
+        combinations = []
+        for method in list(ALGORITHMS['FS_METHODS']):
+            for model in list(ALGORITHMS['MODELS']):
+                self.combinations.append((method, model))
+        for combination in combinations:
             try:
                 result = self.evaluateSingle(X.copy(), y.copy(), combination[0], combination[1], dataset)
                 results[f'{combination[0]}_{combination[1]}'] = result
@@ -172,6 +173,11 @@ class GridSearchNestedCVEvaluation:
         if ('urf' in methodName) or ('relieff' == methodName):
             data['selected_features'] = grid.best_estimator_.get_params()['steps'][1][1].top_features_[:grid.best_estimator_.get_params()['steps'][1][1].n_features_to_select]
 
+        # explainer = shap.Explainer(grid.predict, X_test)
+        # shap_values = explainer.shap_values(X_test)
+        # self._logger.debug(shap_values)
+        # shap.summary_plot(shap_values, X_test, feature_names=self.radiomicFeaturesNames)
+        
         return data.copy()
 
 # class HybridFsEvaluator:

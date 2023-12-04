@@ -32,21 +32,7 @@ def executeFullCombinationPipelinesAsync():
         p.join()
 
 if __name__ == '__main__':   
-    originalPipeline: Pipeline = FullCombinationPipeline(Datasets.ORIGINAL)
-    originalNormalizedPipeline: Pipeline = FullCombinationPipeline(Datasets.ORIGINAL_NORMALIZED)
-    n4Pipeline: Pipeline = FullCombinationPipeline(Datasets.N4)
-    n4NormalizedPipeline: Pipeline = FullCombinationPipeline(Datasets.N4_NORMALIZED)
-    fatNormalizedPipeline: Pipeline = FullCombinationPipeline(Datasets.FAT_NORMALIZED)
-    muscleNormalizedPipeline: Pipeline = FullCombinationPipeline(Datasets.MUSCLE_NORMALIZED)
-    
-    try:
-        originalPipeline.run()
-        # originalNormalizedPipeline.run()
-        # n4Pipeline.run()
-        # n4NormalizedPipeline.run()
-        # fatNormalizedPipeline.run()
-        # muscleNormalizedPipeline.run()
-        
-        # executeFullCombinationPipelinesAsync()
+    try:       
+        executeFullCombinationPipelinesAsync()
     except Exception as e:
         log.exception(e)
