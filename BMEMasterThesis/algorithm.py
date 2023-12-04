@@ -323,7 +323,7 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
     def corrX_orig(self, df, cut = 0.95):
         corr_mtx = df.corr().abs()
         avg_corr = corr_mtx.mean(axis = 1)
-        up = corr_mtx.where(np.triu(np.ones(corr_mtx.shape), k=1).astype(np.bool))
+        up = corr_mtx.where(np.triu(np.ones(corr_mtx.shape), k=1).astype(bool))
         drop = list()
 
         for row in range(len(up)-1):

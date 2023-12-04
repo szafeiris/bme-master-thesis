@@ -9,10 +9,15 @@ LOG_CONFIG = {
         'bme-thesis.BMEMasterThesis.utils.notification': {
             'level': logging.WARNING,
             'handlers': ['console_handler', 'file_handler'],
-            'propagate': True
+            'propagate': False
         },
         'bme-thesis': {
             'level': configuration.LOG_LEVEL,
+            'handlers': ['console_handler', 'file_handler'],
+            'propagate': False
+        },
+        '': {
+            'level': logging.WARNING,
             'handlers': ['console_handler', 'file_handler'],
             'propagate': False
         },

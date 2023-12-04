@@ -33,7 +33,8 @@ class GridSearchNestedCVEvaluation:
         send_to_telegram(f"Evaluation of `{dataset}` started @ {printTime(startTime)}")
         # for combination in [('mifs', 'rf')]:
         #for combination in [('pearson', 'svm-linear'), ('pearson', 'svm-rbf'), ('pearson', 'rf'), ('pearson', 'knn'), ('pearson', 'gnb'), ('pearson', 'xgb'), ('spearman', 'svm-linear'), ('spearman', 'svm-rbf'), ('spearman', 'rf'), ('spearman', 'knn'), ('spearman', 'gnb'), ('spearman', 'xgb')]:
-        for combination in [('relieff', 'svm-linear')]:
+        # for combination in [('boruta', 'svm-linear'), ('lasso', 'svm-linear'), ('relieff', 'svm-linear'), ('mifs', 'svm-linear')]:
+        for combination in [('boruta', 'svm-linear')]:
         
         # combinations = []
         # for method in list(ALGORITHMS['FS_METHODS']):
@@ -41,9 +42,9 @@ class GridSearchNestedCVEvaluation:
         #         self.combinations.append((method, model))
         # for combination in combinations:
             try:
-                result = self.evaluateSingle(X.copy(), y, combination[0], combination[1], dataset)
+                result = self.evaluateSingle(X.copy(), y.copy(), combination[0], combination[1], dataset)
                 results[f'{combination[0]}_{combination[1]}'] = result
-                json.dump(results, PATHS.getResultsForCombinationDir(dataset, combination[0], combination[1]).open(), cls=CustomJSONEncoder, sort_keys=True, indent=1)
+                json.dump(result, PATHS.getResultsForCombinationDir(dataset, combination[0], combination[1]).open('w'), cls=CustomJSONEncoder, sort_keys=True, indent=1)
             except Exception as ex:
                 self._logger.error(f'Error during evaluation of {combination[0]}_{combination[1]}: {str(type(ex).__name__)} {str(ex.args)}')
                 self._logger.exception(ex)
@@ -167,6 +168,9 @@ class GridSearchNestedCVEvaluation:
         data['classification_report'] = classification_report(y_test, grid_predictions)
         TN, FP, FN, TP = confusion_matrix(y_test, grid_predictions).ravel()
         data['confusion_matrix'] = { 'TN': int(TN), 'FP': int(FP), 'FN': int(FN), 'TP': int(TP) }
+        
+        if ('urf' in methodName) or ('relieff' == methodName):
+            data['selected_features'] = grid.best_estimator_.get_params()['steps'][1][1].top_features_[:grid.best_estimator_.get_params()['steps'][1][1].n_features_to_select]
 
         return data.copy()
 
