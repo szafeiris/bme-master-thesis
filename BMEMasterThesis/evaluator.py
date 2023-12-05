@@ -147,7 +147,7 @@ class GridSearchNestedCVEvaluation:
                 pipeline,
                 param_grid,
                 scoring=scoring,
-                cv=4,
+                cv=3,
                 refit="auc",
                 verbose=0,
                 n_jobs=-1,
