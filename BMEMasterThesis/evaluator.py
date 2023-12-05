@@ -40,7 +40,7 @@ class GridSearchNestedCVEvaluation:
         combinations = []
         for method in list(ALGORITHMS['FS_METHODS']):
             for model in list(ALGORITHMS['MODELS']):
-                self.combinations.append((method, model))
+                combinations.append((method, model))
         for combination in combinations:
             try:
                 result = self.evaluateSingle(X.copy(), y.copy(), combination[0], combination[1], dataset)
