@@ -310,7 +310,7 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
         # self.to_drop_ = [column for column in upper.columns if any(upper[column] >= self.threshold)]
         # self.selectedFeatures = [column for column in upper.columns if any(upper[column] < self.threshold)]
         
-        self.to_drop_ = self.corrX_orig(X_df, self.threshold)
+        self.to_drop_ = self.corrX_orig(X_df, self.method, self.threshold)
         self.selectedFeatures = [column for column in X_df.columns if not column in self.to_drop_]
         return self
 
@@ -320,8 +320,8 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
         
         return X_df.to_numpy()
     
-    def corrX_orig(self, df, cut = 0.95):
-        corr_mtx = df.corr().abs()
+    def corrX_orig(self, df, method: str = 'pearson', cut = 0.95):
+        corr_mtx = df.corr(method=method).abs()
         avg_corr = corr_mtx.mean(axis = 1)
         up = corr_mtx.where(np.triu(np.ones(corr_mtx.shape), k=1).astype(bool))
         drop = list()
@@ -357,6 +357,8 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
 # ITMO Multivariate methods
 for method in ITMO_MV_METHODS:
     ALGORITHMS['FS_METHODS'].append(f'{method.lower()}')
+ALGORITHMS['FS_METHODS'].append('pearson')
+ALGORITHMS['FS_METHODS'].append('spearman')
 
 
 def decodeMethod(methodName: str, featureNo=0, params=None):    
