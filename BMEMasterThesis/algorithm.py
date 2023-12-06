@@ -29,7 +29,7 @@ ITMO_MV_METHODS = ['MIFS', 'JMI', 'CMIM', 'MRMR']
 
 ## Algorithms implemented are stored here
 ALGORITHMS = {
-    'FS_METHODS': ['relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar', 'boruta', 'lasso'],
+    'FS_METHODS': ['pearson', 'spearman', 'boruta', 'lasso', 'relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar'],
     'MODELS': ['svm-linear', 'svm-rbf', 'rf', 'gnb', 'knn', 'xgb']
 }
 
@@ -357,8 +357,6 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
 # ITMO Multivariate methods
 for method in ITMO_MV_METHODS:
     ALGORITHMS['FS_METHODS'].append(f'{method.lower()}')
-ALGORITHMS['FS_METHODS'].append('pearson')
-ALGORITHMS['FS_METHODS'].append('spearman')
 
 
 def decodeMethod(methodName: str, featureNo=0, params=None):    
