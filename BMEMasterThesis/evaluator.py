@@ -45,6 +45,7 @@ class GridSearchNestedCVEvaluation:
             try:
                 combinationResultsPath = PATHS.getResultsForCombinationDir(dataset, combination[0], combination[1])
                 if combinationResultsPath.exists() and skipEvaluated:
+                    self._logger.info(f'Skipped evaluation of {combination[0]}/{combination[1]} for `{dataset}`.')
                     results[f'{combination[0]}_{combination[1]}'] = json.load(combinationResultsPath.open())
                     continue
                 
