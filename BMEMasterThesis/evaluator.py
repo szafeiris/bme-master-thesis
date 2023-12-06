@@ -27,7 +27,7 @@ class GridSearchNestedCVEvaluation:
         self._logger = getLogger()
         
 
-    def evaluateAll(self, X, y, dataset=''):
+    def evaluateAll(self, X, y, dataset='', skipEvaluated: bool = True):
         results = {}
         startTime = getTime()
         self._logger.info(f"Evaluation of `{dataset}` started @ {printTime(startTime)}")
@@ -43,9 +43,13 @@ class GridSearchNestedCVEvaluation:
                 combinations.append((method, model))
         for combination in combinations:
             try:
+                combinationResultsPath = PATHS.getResultsForCombinationDir(dataset, combination[0], combination[1])
+                if combinationResultsPath.exists() and skipEvaluated:
+                    continue
+                
                 result = self.evaluateSingle(X.copy(), y.copy(), combination[0], combination[1], dataset)
                 results[f'{combination[0]}_{combination[1]}'] = result
-                json.dump(result, PATHS.getResultsForCombinationDir(dataset, combination[0], combination[1]).open('w'), cls=CustomJSONEncoder, sort_keys=True, indent=1)
+                json.dump(result, combinationResultsPath.open('w'), cls=CustomJSONEncoder, sort_keys=True, indent=1)
             except Exception as ex:
                 self._logger.error(f'Error during evaluation of {combination[0]}_{combination[1]}: {str(type(ex).__name__)} {str(ex.args)}')
                 self._logger.exception(ex)
