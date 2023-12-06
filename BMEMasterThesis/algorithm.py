@@ -356,7 +356,7 @@ class UnivariateFsAlgorithm(FeatureSelectionAlgorithm):
 # ## Fill ALGORITHMS dictionary
 # ITMO Multivariate methods
 for method in ITMO_MV_METHODS:
-    ALGORITHMS['FS_METHODS'].append(f'{method.lower()}-itmo')
+    ALGORITHMS['FS_METHODS'].append(f'{method.lower()}')
 
 
 def decodeMethod(methodName: str, featureNo=0, params=None):    
