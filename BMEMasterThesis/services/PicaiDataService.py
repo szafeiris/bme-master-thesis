@@ -162,14 +162,18 @@ class PicaiDataService(DataService):
                 optimalFeatureNumber = len(combinationResult['best_method_params']['selectedFeatures'])
             
             yPred = np.array(combinationResult['test_predictions'])
+            TP, FP = combinationResult['confusion_matrix']['TP'], combinationResult['confusion_matrix']['FP']
+            TN, FN = combinationResult['confusion_matrix']['TN'], combinationResult['confusion_matrix']['FN']
                         
             combinationResultsDict = {
                 'Feature Selection Method': prettifyFeatureSelectionMethodName(method),
                 'Classification Algorithm': prettifyClassificationAlgorithmName(model),
-                'Dataset': dataset.upper().replace('_NORM', 'NORMALIZED'),
+                'Dataset': dataset.upper().replace('_NORM', ' NORMALIZED'),
                 'Optimal Feature Number': optimalFeatureNumber,
                 'Optimal Threshold': optimalThreshold,
                 'Balanced Accuracy': balanced_accuracy_score(yTrue, yPred),
+                'Sensitivity': TP / (TP + FN),
+                'Speficity': TN / (TN + FP),
                 'Accuracy': accuracy_score(yTrue, yPred),
                 'F1': f1_score(yTrue, yPred),
                 'Precision': precision_score(yTrue, yPred),
