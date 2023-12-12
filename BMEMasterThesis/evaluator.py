@@ -1,3 +1,4 @@
+from typing import Dict, List
 from .algorithm import ALGORITHMS, decodeMethod, decodeModel
 from .utils.notification import send_to_telegram
 from .utils import PATHS, getLogger, CustomJSONEncoder, printTime, getTime
@@ -10,6 +11,51 @@ from sklearn.pipeline import Pipeline
 import numpy as np
 import json
 # import shap
+
+class EvaluationCombination:
+    def __init__(self, method: str, model: str) -> None:
+        self.method = method
+        self.model = model
+        
+    def __str__(self) -> str:
+        return f'{self._method}/{self._model}'
+    
+    def toDict(self) -> Dict[str, str]:
+        return { 'method': self.method, 'model': self.model, }
+    
+    def toKey(self) -> str:
+        return f'{self._method}_{self._model}'
+    
+    @property
+    def method(self):
+        """The feature selection method to use in evaluation."""
+        return self._method
+
+    @method.setter
+    def method(self, newMethod):
+        if newMethod in ALGORITHMS['FS_METHODS']:
+            self._method = newMethod
+        else:
+            raise ValueError(f'Feature selection method `{newMethod}` is not implemented yet')
+    
+    @property
+    def model(self):
+        """The classification model to use in evaluation."""
+        return self._model
+
+    @model.setter
+    def model(self, newModel):
+        if newModel in ALGORITHMS['MODELS']:
+            self._model = newModel
+        else:
+            raise ValueError(f'Classifier `{newModel}` is not implemented yet')
+    
+def getAllEvaluationCombinations() -> List[EvaluationCombination]:
+    evaluationCombination: List[EvaluationCombination] = []
+    for method in list(ALGORITHMS['FS_METHODS']):
+        for model in list(ALGORITHMS['MODELS']):
+            evaluationCombination.append(EvaluationCombination(method, model))
+    return evaluationCombination
 
 class GridSearchNestedCVEvaluation:
     def __init__(self, **kwargs) -> None:
@@ -37,32 +83,28 @@ class GridSearchNestedCVEvaluation:
         # for combination in [('boruta', 'svm-linear'), ('lasso', 'svm-linear'), ('relieff', 'svm-linear'), ('mifs', 'svm-linear')]:
         # for combination in [('pearson', 'svm-linear')]:
         
-        combinations = []
-        for method in list(ALGORITHMS['FS_METHODS']):
-            for model in list(ALGORITHMS['MODELS']):
-                combinations.append((method, model))
-        for combination in combinations:
+        for evaluationcombination in getAllEvaluationCombinations():
             try:
-                combinationResultsPath = PATHS.getResultsForCombinationDir(dataset, combination[0], combination[1])
+                combinationResultsPath = PATHS.getResultsForCombinationDir(dataset, evaluationcombination.method, evaluationcombination.model)
                 if combinationResultsPath.exists() and skipEvaluated:
-                    self._logger.info(f'Skipped evaluation of {combination[0]}/{combination[1]} for `{dataset}`.')
-                    results[f'{combination[0]}_{combination[1]}'] = json.load(combinationResultsPath.open())
+                    self._logger.info(f'Skipped evaluation of {str(evaluationcombination)} for `{dataset}`.')
+                    results[f'{evaluationcombination.toKey()}'] = json.load(combinationResultsPath.open())
                     continue
                 
-                result = self.evaluateSingle(X.copy(), y.copy(), combination[0], combination[1], dataset)
-                results[f'{combination[0]}_{combination[1]}'] = result
+                result = self.evaluate(X.copy(), y.copy(), evaluationcombination, dataset)
+                results[f'{evaluationcombination.toKey()}'] = result
                 json.dump(result, combinationResultsPath.open('w'), cls=CustomJSONEncoder, sort_keys=True, indent=1)
             except Exception as ex:
-                self._logger.error(f'Error during evaluation of {combination[0]}_{combination[1]}: {str(type(ex).__name__)} {str(ex.args)}')
+                self._logger.error(f'Error during evaluation of {evaluationcombination.toKey()}: {str(type(ex).__name__)} {str(ex.args)}')
                 self._logger.exception(ex)
-                send_to_telegram(f'Error during evaluation of {combination[0]}_{combination[1]}: {str(type(ex).__name__)} {str(ex.args)} [{str(ex)}]')
+                send_to_telegram(f'Error during evaluation of {evaluationcombination.toKey()}: {str(type(ex).__name__)} {str(ex.args)} [{str(ex)}]')
         
         endTime = getTime()
         self._logger.info(f"Evaluation of `{dataset}` ended @ {printTime(endTime)} [Elapsed time: {printTime(endTime - startTime)}]")
         send_to_telegram(f"Evaluation of `{dataset}` ended @ {printTime(endTime)} [Elapsed time: {printTime(endTime - startTime)}]")
         return results
 
-    def evaluateSingle(self, X, y, methodName, modelName, dataset=''):
+    def evaluate(self, X, y, evaluationCombination: EvaluationCombination, dataset=''):
         scoring = {
             'auc': 'roc_auc',
             'accuracy': make_scorer(accuracy_score),
@@ -74,18 +116,18 @@ class GridSearchNestedCVEvaluation:
             'cohen_kappa': make_scorer(cohen_kappa_score),
         }
         
-        self._logger.info(f'Executing {methodName}/{modelName} for `{dataset}`.')
-        send_to_telegram(f'Executing {methodName}/{modelName} for `{dataset}`.')
+        self._logger.info(f'Executing {str(evaluationCombination)} for `{dataset}`.')
+        send_to_telegram(f'Executing {str(evaluationCombination)} for `{dataset}`.')
         
         X_train, X_test = X[self.train_idx], X[self.test_idx]
         y_train, y_test = y[self.train_idx], y[self.test_idx]
         data = {}
 
-        if ('urf' in methodName) or ('relieff' == methodName):
+        if ('urf' in evaluationCombination.method) or ('relieff' == evaluationCombination.method):
             param_grid = {
                 'feature_selector__n_features_to_select': self.featureNumbers,
             }
-        elif methodName == 'pearson' or methodName == 'spearman':
+        elif evaluationCombination.method == 'pearson' or evaluationCombination.method == 'spearman':
             param_grid = {
                 'feature_selector__threshold': self.thresholds,
             }
@@ -94,7 +136,7 @@ class GridSearchNestedCVEvaluation:
                 'feature_selector__nFeatures': self.featureNumbers,
             }
             
-            if 'mifs' in methodName:
+            if 'mifs' in evaluationCombination.method:
                 param_grid = {
                     **param_grid,
                     'feature_selector__beta': [1],
@@ -102,11 +144,11 @@ class GridSearchNestedCVEvaluation:
 
         pipeline = Pipeline([
             ('standard_scaler', StandardScaler()),
-            ('feature_selector', decodeMethod(methodName)),
-            ('classifier', decodeModel(modelName))
+            ('feature_selector', decodeMethod(evaluationCombination.method)),
+            ('classifier', decodeModel(evaluationCombination.model))
         ])
    
-        if 'boruta' in methodName: 
+        if 'boruta' in evaluationCombination.method: 
             pipeline.fit(X_train, y_train)
             predictions = pipeline.predict(X_test)
             
@@ -119,7 +161,7 @@ class GridSearchNestedCVEvaluation:
             
             return data.copy()
 
-        if 'lasso' in methodName:
+        if 'lasso' in evaluationCombination.method:
             search = GridSearchCV(pipeline,
                 {
                     'feature_selector__alpha': np.arange(0.01, 0.5, 0.01),
@@ -176,7 +218,7 @@ class GridSearchNestedCVEvaluation:
         TN, FP, FN, TP = confusion_matrix(y_test, grid_predictions).ravel()
         data['confusion_matrix'] = { 'TN': int(TN), 'FP': int(FP), 'FN': int(FN), 'TP': int(TP) }
         
-        if ('urf' in methodName) or ('relieff' == methodName):
+        if ('urf' in evaluationCombination.method) or ('relieff' == evaluationCombination.method):
             data['selected_features'] = grid.best_estimator_.get_params()['steps'][1][1].top_features_[:grid.best_estimator_.get_params()['steps'][1][1].n_features_to_select]
 
         # explainer = shap.Explainer(grid.predict, X_test)
@@ -285,33 +327,33 @@ class GridSearchNestedCVEvaluation:
             
 #             break
             
-#     def evaluateSingle(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureNumber2, modelName, sufix=''):
+#     def evaluateSingle(self, X, y, yStrat, evaluationCombination.method1, featureNumber1, evaluationCombination.method2, featureNumber2, evaluationCombination.model, sufix=''):
 #         if sufix != '':
 #             sufix = f'{sufix[1:].replace("_", "-")}'
         
-#         log.info(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
-#         send_to_telegram(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
+#         log.info(f'Executing {evaluationCombination.method1}/{evaluationCombination.method2}/{evaluationCombination.model}{sufix}.')
+#         send_to_telegram(f'Executing {evaluationCombination.method1}/{evaluationCombination.method2}/{evaluationCombination.model}{sufix}.')
         
 #         X_train, X_test = X[self.train_index], X[self.test_index]
 #         y_train, y_test = y[self.train_index], y[self.test_index]
                     
 #         pipeline = Pipeline([
 #             ('standard_scaler', StandardScaler()),
-#             ('feature_selector_1', decodeMethod(methodName1)),
-#             ('feature_selector_2', decodeMethod(methodName2)),
-#             ('classifier', decodeModel(modelName))
+#             ('feature_selector_1', decodeMethod(evaluationCombination.method1)),
+#             ('feature_selector_2', decodeMethod(evaluationCombination.method2)),
+#             ('classifier', decodeModel(evaluationCombination.model))
 #         ])
 
-#         if ('urf' in methodName1) or ('relieff' == methodName1):
+#         if ('urf' in evaluationCombination.method1) or ('relieff' == evaluationCombination.method1):
 #             pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
-#         elif methodName1 == 'pearson' or methodName1 == 'spearman' or methodName1 == 'kendall':
+#         elif evaluationCombination.method1 == 'pearson' or evaluationCombination.method1 == 'spearman' or evaluationCombination.method1 == 'kendall':
 #             pipeline.named_steps['feature_selector_1'].set_params(threshold=featureNumber1)
 #         else:
 #             pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
 
-#         if ('urf' in methodName2) or ('relieff' == methodName2):
+#         if ('urf' in evaluationCombination.method2) or ('relieff' == evaluationCombination.method2):
 #             pipeline.named_steps['feature_selector_2'].set_params(n_features_to_select=featureNumber2)
-#         elif methodName2 == 'pearson' or methodName2 == 'spearman' or methodName1 == 'kendall':
+#         elif evaluationCombination.method2 == 'pearson' or evaluationCombination.method2 == 'spearman' or evaluationCombination.method1 == 'kendall':
 #             pipeline.named_steps['feature_selector_2'].set_params(threshold=featureNumber2)
 #         else:
 #             pipeline.named_steps['feature_selector_2'].set_params(nFeatures=featureNumber2)
@@ -321,7 +363,7 @@ class GridSearchNestedCVEvaluation:
 #         predictions = pipeline.predict(X_test)
 #         TN, FP, FN, TP = confusion_matrix(y_test, predictions).ravel()
 #         data = {
-#             'name': f"{methodName1}/{methodName2}/{modelName}{sufix}",
+#             'name': f"{evaluationCombination.method1}/{evaluationCombination.method2}/{evaluationCombination.model}{sufix}",
 #             'params': [featureNumber1, featureNumber2],
 #             'TN': int(TN),
 #             'FP': int(FP),
@@ -338,36 +380,36 @@ class GridSearchNestedCVEvaluation:
         
 #         return data.copy()
     
-#     def evaluateSingleWithGSCV(self, X, y, yStrat, methodName1, featureNumber1, methodName2, featureStop, modelName, sufix=''):
+#     def evaluateSingleWithGSCV(self, X, y, yStrat, evaluationCombination.method1, featureNumber1, evaluationCombination.method2, featureStop, evaluationCombination.model, sufix=''):
 #         if sufix != '':
 #             sufix = f'{sufix[1:].replace("_", "-")}'
         
-#         log.info(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.')
-#         send_to_telegram(f'Executing {methodName1}/{methodName2}/{modelName}{sufix}.') 
+#         log.info(f'Executing {evaluationCombination.method1}/{evaluationCombination.method2}/{evaluationCombination.model}{sufix}.')
+#         send_to_telegram(f'Executing {evaluationCombination.method1}/{evaluationCombination.method2}/{evaluationCombination.model}{sufix}.') 
         
 #         X_train, X_test = X[self.train_index], X[self.test_index]
 #         y_train, y_test = y[self.train_index], y[self.test_index]
                     
 #         pipeline = Pipeline([
 #             ('standard_scaler', StandardScaler()),
-#             ('feature_selector_1', decodeMethod(methodName1)),
-#             ('feature_selector_2', decodeMethod(methodName2)),
-#             ('classifier', decodeModel(modelName))
+#             ('feature_selector_1', decodeMethod(evaluationCombination.method1)),
+#             ('feature_selector_2', decodeMethod(evaluationCombination.method2)),
+#             ('classifier', decodeModel(evaluationCombination.model))
 #         ])
 
 #         param_grid = {}
-#         # if ('urf' in methodName1) or ('relieff' == methodName1):
+#         # if ('urf' in evaluationCombination.method1) or ('relieff' == evaluationCombination.method1):
 #         #     pipeline.named_steps['feature_selector_1'].set_params(n_features_to_select=featureNumber1)
-#         # elif methodName1 == 'pearson' or methodName1 == 'spearman' or methodName1 == 'kendall':
+#         # elif evaluationCombination.method1 == 'pearson' or evaluationCombination.method1 == 'spearman' or evaluationCombination.method1 == 'kendall':
 #         #     pipeline.named_steps['feature_selector_1'].set_params(threshold=featureNumber1)
 #         # else:
 #         #     pipeline.named_steps['feature_selector_1'].set_params(nFeatures=featureNumber1)
         
-#         if ('urf' in methodName1) or ('relieff' == methodName1):
+#         if ('urf' in evaluationCombination.method1) or ('relieff' == evaluationCombination.method1):
 #             param_grid = {
 #                 'feature_selector_1__n_features_to_select': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
 #             }
-#         elif methodName1 == 'pearson' or methodName1 == 'spearman' or methodName1 == 'kendall':
+#         elif evaluationCombination.method1 == 'pearson' or evaluationCombination.method1 == 'spearman' or evaluationCombination.method1 == 'kendall':
 #             param_grid = {
 #                 'feature_selector_1__threshold': [0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
 #             }
@@ -376,16 +418,16 @@ class GridSearchNestedCVEvaluation:
 #                 'feature_selector_1__nFeatures': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
 #             }
 
-#         if ('urf' in methodName2) or ('relieff' == methodName2):
+#         if ('urf' in evaluationCombination.method2) or ('relieff' == evaluationCombination.method2):
 #             param_grid = {
 #                 **param_grid,
 #                 'feature_selector_2__n_features_to_select': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
 #             }
-#         elif methodName2 == 'boruta' or methodName2 == 'lasso':
+#         elif evaluationCombination.method2 == 'boruta' or evaluationCombination.method2 == 'lasso':
 #             param_grid = {
 #                 **param_grid,
 #             }
-#         elif methodName2 == 'pearson' or methodName2 == 'spearman' or methodName1 == 'kendall':
+#         elif evaluationCombination.method2 == 'pearson' or evaluationCombination.method2 == 'spearman' or evaluationCombination.method1 == 'kendall':
 #             param_grid = {
 #                 **param_grid,
 #                 'feature_selector_2__threshold': [int(a) for a in np.arange(start=3, step=5, stop=featureStop)]
@@ -424,7 +466,7 @@ class GridSearchNestedCVEvaluation:
 #         predictions = grid.predict(X_test)
 #         TN, FP, FN, TP = confusion_matrix(y_test, predictions).ravel()
 #         data = {
-#             'name': f"{methodName1}/{methodName2}/{modelName}{sufix}",
+#             'name': f"{evaluationCombination.method1}/{evaluationCombination.method2}/{evaluationCombination.model}{sufix}",
 #             'params': [featureNumber1, grid.best_params_[list(grid.best_params_.keys())[0]]],
 #             'TN': int(TN),
 #             'FP': int(FP),
