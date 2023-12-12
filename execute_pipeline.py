@@ -1,5 +1,4 @@
-from BMEMasterThesis.utils import log, Datasets, PATHS, configuration as conf
-from BMEMasterThesis.services import PicaiDataService
+from BMEMasterThesis.utils import log, Datasets
 from BMEMasterThesis.pipelines import Pipeline, FullCombinationPipeline
 
 from multiprocessing import Process
