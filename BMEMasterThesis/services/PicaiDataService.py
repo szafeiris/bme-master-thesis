@@ -168,7 +168,7 @@ class PicaiDataService(DataService):
             combinationResultsDict = {
                 'Feature Selection Method': prettifyFeatureSelectionMethodName(method),
                 'Classification Algorithm': prettifyClassificationAlgorithmName(model),
-                'Dataset': dataset.upper().replace('_NORM', ' NORMALIZED'),
+                'Dataset': dataset.upper().replace('_NORM', ' (Normalized)'),
                 'Optimal Feature Number': optimalFeatureNumber,
                 'Optimal Threshold': optimalThreshold,
                 'Balanced Accuracy': balanced_accuracy_score(yTrue, yPred),

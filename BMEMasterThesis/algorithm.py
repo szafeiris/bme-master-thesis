@@ -450,8 +450,8 @@ ALGORITHM_NAMES = {
         'multisurfstar': 'Multisurf*',
     },
     'MODELS': {
-        'svm-linear': 'SVN (Linear Kernel)',
-        'svm-rbf': 'SVN (RBF Kernel)',
+        'svm-linear': 'SVM (Linear Kernel)',
+        'svm-rbf': 'SVM (RBF Kernel)',
         'gnb': 'Gaussian Naive Bayes',
         'rf': 'Random Forest',
         'knn': 'k-Nearest Neighbor',
