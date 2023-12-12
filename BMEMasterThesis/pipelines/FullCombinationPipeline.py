@@ -15,6 +15,8 @@ class FullCombinationPipeline(Pipeline):
     def __init__(self, dataset: str = None, dataService: PicaiDataService = PicaiDataService()) -> None:
         super().__init__(dataset, dataService)
         self._dataService = dataService
+        if self._getCachedStateFile().exists():
+            self._loadState()
 
     def __step_1_extractRadiomics__(self):
         self.radiomicsFile_ = PATHS.getRadiomicFile(self._dataset)
@@ -132,6 +134,17 @@ class FullCombinationPipeline(Pipeline):
             'evaluationResults': evaluationResults
         }
         self._saveState()
+    
+    def __step_4_createScores__(self):
+        yTrue = self._state['y'][self._state['test_index']]
+        self._dataService.generateScoresFromResults(self._dataset, yTrue)
+        scores = self._dataService.getScores(self._dataset)
+        
+        self._state = {
+            **self._state,
+            'scores': scores
+        }
+        self._saveState()
         
     def _unpackArgs(self, **kwargs):
         self.__isFixedBinWidth = kwargs['isFixedBinWidth'] if 'isFixedBinWidth' in kwargs else True
@@ -145,6 +158,7 @@ class FullCombinationPipeline(Pipeline):
             self.__step_1_extractRadiomics__()
             self.__step_2_readData__()
             self.__step_3_evaluate__()
+            self.__step_4_createScores__()
             self._logger.debug(f'Pipeline {self.__class__.__name__}({self._dataset}) ended')
         except KeyboardInterrupt:
             self._logger.warning('Pipeline finished unexpectedly after keyboard interupt')

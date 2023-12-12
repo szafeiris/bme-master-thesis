@@ -67,6 +67,9 @@ class Paths:
         path.mkdir(exist_ok=True)
         return path
     
+    def getScoresCsvFile(self, dataset: str = ""):
+        return self.RESULTS_DIR.joinpath(f'scores.{self.transformDataset(dataset)}.csv')
+    
     def getResultsForCombinationDir(self, dataset: str = "", method: str = "", model: str = ""):
         return self.getResultsDir(dataset).joinpath(f'{method}_{model}.json')
     

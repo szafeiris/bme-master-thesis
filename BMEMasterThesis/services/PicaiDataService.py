@@ -3,8 +3,10 @@ from .utils import DataReader, NiftyReader
 from ..extractor import BasicRadiomicExtractor, MultiLabelRadiomicExtractor
 from ..utils.config import PATHS, Datasets
 from ..utils.log import getLogger
+from ..utils.utils import prettifyClassificationAlgorithmName, prettifyFeatureSelectionMethodName
 
-from matplotlib import pyplot as plt
+from sklearn.metrics import balanced_accuracy_score, cohen_kappa_score, f1_score, precision_score, recall_score, roc_auc_score, accuracy_score
+from numpy.typing import NDArray
 from typing import List, Tuple
 from pathlib import Path
 import pandas as pd
@@ -131,4 +133,59 @@ class PicaiDataService(DataService):
     
     def getMetadata(self):
         return pd.read_csv(PATHS.PICAI_METADATA_FILE)
+    
+    def getScores(self, dataset: str) -> pd.DataFrame:
+        scoresCSVFile = PATHS.getScoresCsvFile(dataset)
+        if scoresCSVFile.exists():
+            return pd.read_csv(scoresCSVFile)
+        return None
+            
+    def generateScoresFromResults(self, dataset: str, yTrue: NDArray, forceGenerate: bool = False):
+        scoresCSVFile = PATHS.getScoresCsvFile(dataset)
+        if scoresCSVFile.exists() and (not forceGenerate):
+            return
+        
+        combinationResults = []
+        for combinationResultFile in PATHS.getResultsDir(dataset).glob('*.json'):
+            combinationResult = json.load(combinationResultFile.open())
+            combination = str(combinationResultFile).split(os.sep)[-1].removesuffix('.json').split('_')
+            method, model = combination[0], combination[1]            
+            
+            optimalThreshold = None
+            optimalFeatureNumber = None
+            if 'surf' in method or 'relief' in method:
+                optimalFeatureNumber = combinationResult['best_method_params']['n_features_to_select']
+            elif ('pearson' in method or 'spearman' in method) and (not 'itmo' in method):
+                optimalThreshold = combinationResult['best_method_params']['threshold']
+                optimalFeatureNumber = len(combinationResult['best_method_params']['selectedFeatures'])
+            else:
+                optimalFeatureNumber = len(combinationResult['best_method_params']['selectedFeatures'])
+            
+            yPred = np.array(combinationResult['test_predictions'])
+                        
+            combinationResultsDict = {
+                'Feature Selection Method': prettifyFeatureSelectionMethodName(method),
+                'Classification Algorithm': prettifyClassificationAlgorithmName(model),
+                'Dataset': dataset.upper().replace('_NORM', 'NORMALIZED'),
+                'Optimal Feature Number': optimalFeatureNumber,
+                'Optimal Threshold': optimalThreshold,
+                'Balanced Accuracy': balanced_accuracy_score(yTrue, yPred),
+                'Accuracy': accuracy_score(yTrue, yPred),
+                'F1': f1_score(yTrue, yPred),
+                'Precision': precision_score(yTrue, yPred),
+                'Recall': recall_score(yTrue, yPred),
+                'ROC AUC': roc_auc_score(yTrue, yPred),
+                'Cohen Kappa': cohen_kappa_score(yTrue, yPred),              
+                **combinationResult['confusion_matrix'],
+            }
+            
+            combinationResults.append(combinationResultsDict)
+        
+        pd.DataFrame(combinationResults).to_csv(scoresCSVFile, index=False)
+            
+            
+            
+            
+        
+        
     

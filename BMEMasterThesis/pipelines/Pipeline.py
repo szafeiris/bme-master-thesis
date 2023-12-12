@@ -14,19 +14,22 @@ class Pipeline:
         self._dataService = dataService
         self._state = {}
     
-    def _getCachedStateFilename(self):
+    def _getCachedStateFile(self):
         cachedStatePath = PATHS.CACHE_DIR.joinpath(f'{self.__class__.__name__}.{self._dataset}')
         cachedStatePath.mkdir(exist_ok= True)
         cachedStateFile = cachedStatePath.joinpath('.cached_state')
         return cachedStateFile
     
     def _saveState(self):
-        cachedStateFile = self._getCachedStateFilename()
+        cachedStateFile = self._getCachedStateFile()
         json.dump(self._state, cachedStateFile.open('w'), cls=CustomJSONEncoder, sort_keys=True, indent=10)
     
     def _loadState(self):
-        cachedStateFile = self._getCachedStateFilename()
-        self._state = json.load(cachedStateFile.open())
+        cachedStateFile = self._getCachedStateFile()
+        try:
+            self._state = json.load(cachedStateFile.open())
+        except:
+            pass
         
     def run(self, *args, **kwargs) -> None:
         raise NotImplementedError()
