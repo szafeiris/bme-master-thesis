@@ -429,3 +429,32 @@ def decodeModel(modelName: str, params=None):
         model.set_params(**params)
 
     return model
+
+ALGORITHM_NAMES = {
+    'FS_METHODS': {
+        'pearson': 'Pearson',
+        'spearman': 'Spearman',
+        'kendall': 'Kendall',
+        'pearson-itmo': 'Pearson (ITMO)',
+        'spearman-itmo': 'Spearman (ITMO)',
+        'mrmr': 'Mrmr',
+        'jmi': 'Joint Mutual Information',
+        'mifs': 'Mutual Information Feature Selection',
+        'cmim': 'Conditional Mutual Information Maximization',
+        'boruta': 'Boruta',
+        'lasso': 'LASSO',
+        'relieff': 'ReliefF',
+        'surf': 'Surf',
+        'surfstar': 'Surf*',
+        'multisurf': 'Multisurf',
+        'multisurfstar': 'Multisurf*',
+    },
+    'MODELS': {
+        'svm-linear': 'SVN (Linear Kernel)',
+        'svm-rbf': 'SVN (RBF Kernel)',
+        'gnb': 'Gaussian Naive Bayes',
+        'rf': 'Random Forest',
+        'knn': 'k-Nearest Neighbor',
+        'xgb': 'eXtreme Gradient Boost',
+    },
+}
