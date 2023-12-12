@@ -29,7 +29,7 @@ ITMO_MV_METHODS = ['MIFS', 'JMI', 'CMIM', 'MRMR']
 
 ## Algorithms implemented are stored here
 ALGORITHMS = {
-    'FS_METHODS': ['pearson', 'spearman', 'boruta', 'lasso', 'relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar'],
+    'FS_METHODS': ['pearson', 'spearman', 'kendall', 'boruta', 'lasso', 'relieff', 'surf', 'surfstar', 'multisurf', 'multisurfstar'],
     'MODELS': ['svm-linear', 'svm-rbf', 'rf', 'gnb', 'knn', 'xgb']
 }
 

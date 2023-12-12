@@ -52,6 +52,7 @@ class Paths:
         self.RADIOMICS_DIR = self.DATA_DIR.joinpath("radiomics")
         self.RESULTS_DIR = self.DATA_DIR.joinpath("results")
         self.RANGES_DIR = self.DATA_DIR.joinpath("ranges")
+        self.ANALYSIS_DIR = self.DATA_DIR.joinpath("analysis")
     
     def getDatasetImagesDir(self, dataset: str = ""):
         dataset = dataset.strip()
