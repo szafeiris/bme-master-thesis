@@ -134,6 +134,9 @@ class PicaiDataService(DataService):
     def getMetadata(self):
         return pd.read_csv(PATHS.PICAI_METADATA_FILE)
     
+    def getRadiomicFeatureNames(self):
+        return json.load(PATHS.PICAI_RADIOMICS_NAMES_FILE.open())
+    
     def getScores(self, dataset: str) -> pd.DataFrame:
         scoresCSVFile = PATHS.getScoresCsvFile(dataset)
         if scoresCSVFile.exists():

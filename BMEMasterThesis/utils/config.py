@@ -65,6 +65,7 @@ class Paths:
         self.PICAI_PATIENTS_ID_FILE = self.PICAI_DIR.joinpath("valid-patient-ids.txt")
         self.PICAI_METADATA_FILE = self.PICAI_DIR.joinpath("picai_metadata.csv")
         self.PICAI_INDICES_FILE = self.PICAI_DIR.joinpath("picai_indices.json")
+        self.PICAI_RADIOMICS_NAMES_FILE = self.PICAI_DIR.joinpath("picai_feature_names.json")
         
         self.RADIOMICS_DIR = self.DATA_DIR.joinpath("radiomics")
         self.RESULTS_DIR = self.DATA_DIR.joinpath("results")
