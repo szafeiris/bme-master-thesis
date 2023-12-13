@@ -78,16 +78,19 @@ class Paths:
     
     def getRadiomicFile(self, dataset: str = ""):
         dataset = dataset.strip()
+        self.RADIOMICS_DIR.mkdir(exist_ok=True)
         return self.RADIOMICS_DIR.joinpath(f"picai_radiomic_features.{dataset}.csv")
     
     def getResultsDir(self, dataset: str = ""):
         dataset = dataset.strip()
+        self.RESULTS_DIR.mkdir(exist_ok=True)
         path = self.RESULTS_DIR.joinpath(self.transformDataset(dataset))
         path.mkdir(exist_ok=True)
         return path
     
     def getAnalysisDir(self, dataset: str = ""):
         dataset = dataset.strip()
+        self.ANALYSIS_DIR.mkdir(exist_ok=True)
         path = self.ANALYSIS_DIR.joinpath(self.transformDataset(dataset))
         path.mkdir(exist_ok=True)
         path.joinpath('plots').mkdir(exist_ok=True)
@@ -107,6 +110,7 @@ class Paths:
     
     def getRangesFile(self, dataset: str = ""):
         dataset = dataset.strip()
+        self.RANGES_DIR.mkdir(exist_ok=True)
         return self.RANGES_DIR.joinpath(f"ranges.{dataset}.json")
     
     def transformDataset(self, dataset: str = ''):
