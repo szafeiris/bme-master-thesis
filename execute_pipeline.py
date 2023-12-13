@@ -17,7 +17,7 @@ def executeFullCombinationPipelinesAsync():
     for p in processes:
         p.join()
     
-    PicaiVisualizer().visualizeAllDatasets()
+    PicaiVisualizer().visualizeAllDatasets('full_analysis')
 
 if __name__ == '__main__':   
     try:       

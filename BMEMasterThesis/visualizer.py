@@ -18,11 +18,11 @@ class Visualizer:
     def visualizeDataset(self, dataset: str) -> None:
         pass
     
-    def visualizeDatasets(self, datasets: List[str]) -> None:
+    def visualizeDatasets(self, datasets: List[str], saveName: str | Path) -> None:
         pass
     
-    def visualizeAllDatasets(self) -> None:
-        self.visualizeDatasets(Datasets._ALL_DATASETS)
+    def visualizeAllDatasets(self, saveName: str | Path) -> None:
+        self.visualizeDatasets(Datasets._ALL_DATASETS, saveName)
     
     def getMaxScore(scoreName: str, resultScores: pd.DataFrame):
         return resultScores.loc[resultScores[scoreName].idxmax()]
