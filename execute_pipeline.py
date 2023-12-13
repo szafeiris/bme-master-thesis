@@ -1,7 +1,9 @@
-from BMEMasterThesis.utils import log, Datasets
 from BMEMasterThesis.pipelines import Pipeline, FullCombinationPipeline
+from BMEMasterThesis.visualizer import PicaiVisualizer
+from BMEMasterThesis.utils import log, Datasets
 
 from multiprocessing import Process
+
 
 
 def executePipeline(pipeline: Pipeline):
@@ -14,6 +16,8 @@ def executeFullCombinationPipelinesAsync():
         
     for p in processes:
         p.join()
+    
+    PicaiVisualizer().visualizeAllDatasets()
 
 if __name__ == '__main__':   
     try:       

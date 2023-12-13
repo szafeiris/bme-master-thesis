@@ -1,3 +1,4 @@
+from ..visualizer import PicaiVisualizer
 from ..utils.CustomJSONEncoder import CustomJSONEncoder
 from ..evaluator import GridSearchNestedCVEvaluation
 from ..utils.notification import send_to_telegram
@@ -146,6 +147,9 @@ class FullCombinationPipeline(Pipeline):
         }
         self._saveState()
         
+    def __step_5_visualize__(self):
+        PicaiVisualizer(dataService=self._dataService).visualizeDataset(self._dataset)
+        
     def _unpackArgs(self, **kwargs):
         self.__isFixedBinWidth = kwargs['isFixedBinWidth'] if 'isFixedBinWidth' in kwargs else True
         self.__binCount = kwargs['binCount'] if 'binCount' in kwargs and isinstance(kwargs['binCount'], int) and kwargs['binCount']  > 0 else 32
@@ -159,6 +163,7 @@ class FullCombinationPipeline(Pipeline):
             self.__step_2_readData__()
             self.__step_3_evaluate__()
             self.__step_4_createScores__()
+            self.__step_5_visualize__()
             self._logger.debug(f'Pipeline {self.__class__.__name__}({self._dataset}) ended')
         except KeyboardInterrupt:
             self._logger.warning('Pipeline finished unexpectedly after keyboard interupt')
