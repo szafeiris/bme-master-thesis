@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from pydantic_settings import BaseSettings
 
 
@@ -26,12 +26,29 @@ class Configuration(BaseSettings):
         env_file_encoding = 'utf-8'
 
 class Datasets:
-    ORIGINAL = "original"
-    ORIGINAL_NORMALIZED = "original_norm"
-    N4 = "n4"
-    N4_NORMALIZED = "n4_norm"
-    FAT_NORMALIZED = "fat"
-    MUSCLE_NORMALIZED = "muscle"
+    ORIGINAL: str = "original"
+    ORIGINAL_NORMALIZED: str = "original_norm"
+    N4: str = "n4"
+    N4_NORMALIZED: str = "n4_norm"
+    FAT_NORMALIZED: str = "fat"
+    MUSCLE_NORMALIZED: str = "muscle"
+    FAT_PIECEWISE_NORMALIZED: str = "fat_piecewise"
+    MUSCLE_PIECEWISE_NORMALIZED: str = "muscle_piecewise"
+    
+    _ALL_DATASETS: List[str] = [ ORIGINAL, ORIGINAL_NORMALIZED, N4, N4_NORMALIZED, FAT_NORMALIZED, MUSCLE_NORMALIZED, FAT_PIECEWISE_NORMALIZED, MUSCLE_PIECEWISE_NORMALIZED ]
+    _ORIGINAL_DATASETS: List[str] = [ ORIGINAL, ORIGINAL_NORMALIZED ]
+    _N4_DATASETS: List[str] = [ N4, N4_NORMALIZED ]
+    _FAT_DATASETS: List[str] = [ FAT_NORMALIZED, FAT_PIECEWISE_NORMALIZED ]
+    _MUSCLE_DATASETS: List[str] = [ MUSCLE_NORMALIZED, MUSCLE_PIECEWISE_NORMALIZED ]
+    _NORMALIZED_DATASETS: List[str] = [ ORIGINAL_NORMALIZED, N4_NORMALIZED, FAT_NORMALIZED, MUSCLE_NORMALIZED, FAT_PIECEWISE_NORMALIZED, MUSCLE_PIECEWISE_NORMALIZED ]
+    _PIECEWISE_DATASETS: List[str] = [ FAT_PIECEWISE_NORMALIZED, MUSCLE_PIECEWISE_NORMALIZED ]
+        
+    def prettifyDataset(dataset: str):
+        return dataset.upper().replace('_', ' ').replace('NORM', '(Normalized)').replace('PIECEWISE', '(Piece-Wise)')
+    
+    def simplifyDataset(dataset: str):
+        return dataset.replace(' ', '_').replace('(Normalized)', 'NORM').replace('(Piece-Wise)', 'PIECEWISE').lower()
+    
     
 class Paths:
     def __init__(self, base_dir: str = ".") -> None:
