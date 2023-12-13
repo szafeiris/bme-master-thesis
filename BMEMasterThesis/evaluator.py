@@ -127,7 +127,7 @@ class GridSearchNestedCVEvaluation:
             param_grid = {
                 'feature_selector__n_features_to_select': self.featureNumbers,
             }
-        elif evaluationCombination.method == 'pearson' or evaluationCombination.method == 'spearman':
+        elif evaluationCombination.method == 'pearson' or evaluationCombination.method == 'spearman' or evaluationCombination.method == 'kendall':
             param_grid = {
                 'feature_selector__threshold': self.thresholds,
             }
