@@ -165,11 +165,11 @@ class PicaiVisualizer(Visualizer):
             Visualizer.generateScorePlotByFSMethod('Balanced Accuracy', m, datasetResultScores, path=analysisDir.joinpath('plots').joinpath('methods'))
         
         bestCombination = Visualizer.getBestCombinationForDataset(dataset, datasetResultScores)
-        bestCombination.to_excel(analysisDir.joinpath('Top Combination.xlsx'))
+        bestCombination.to_excel(analysisDir.joinpath('Top Combination.xlsx'), index = False)
         
         for n in [5, 10, 20]:
             topNCombinations = Visualizer.getNBestCombinationsForDataset(n, dataset, datasetResultScores)
-            topNCombinations.to_excel(analysisDir.joinpath(f'Top {n} Combination.xlsx'))
+            topNCombinations.to_excel(analysisDir.joinpath(f'Top {n} Combination.xlsx'), index = False)
         
         bestMethod = simplifyFeatureSelectionMethodName(bestCombination['Feature Selection Method'].get(0))
         bestModel = simplifyClassificationAlgorithmName(bestCombination['Classification Algorithm'].get(0))
@@ -188,8 +188,37 @@ class PicaiVisualizer(Visualizer):
         
         datasetResultScores = pd.concat([self._dataService.getScores(dataset) for dataset in datasets], ignore_index= True)
         datasetResultScores.sort_values(by=['Balanced Accuracy', 'ROC AUC', 'Dataset', 'Feature Selection Method', 'Classification Algorithm'])
-            
-       
         
+        Visualizer.generateBoxplotForScore('Balanced Accuracy', datasetResultScores, path=analysisDir.joinpath('Balanced Accuracy Boxplot.jpg'))
+        Visualizer.generateBoxplotForScore('ROC AUC', datasetResultScores, path=analysisDir.joinpath('ROC AUC Boxplot.jpg'))
+        Visualizer.generateBoxplotForScore('Cohen Kappa', datasetResultScores, path=analysisDir.joinpath('Cohen Kappa Boxplot.jpg'))
+        
+        Visualizer.generatePerClassifierPlotForScore('Balanced Accuracy', datasetResultScores, path=analysisDir.joinpath('Balanced Accuracy per Classifier.jpg'))
+        Visualizer.generatePerMethodPlotForScore('Balanced Accuracy', datasetResultScores, path=analysisDir.joinpath('Balanced Accuracy per Feature Selection Method.jpg'))
+        
+        classifiers = datasetResultScores['Classification Algorithm'].unique().tolist()
+        methods = datasetResultScores['Feature Selection Method'].unique().tolist()
+        for c in classifiers:
+            Visualizer.generateScorePlotByClassifier('Balanced Accuracy', c, datasetResultScores, path=analysisDir.joinpath('plots').joinpath('classifiers'))
+        for m in methods:
+            Visualizer.generateScorePlotByFSMethod('Balanced Accuracy', m, datasetResultScores, path=analysisDir.joinpath('plots').joinpath('methods'))
+
+        
+        topResultScores = datasetResultScores.loc[datasetResultScores['Balanced Accuracy'] >= 0.60].copy()
+        topResultScores = topResultScores.sort_values(by=['Balanced Accuracy',  'Dataset'], ascending=False)
+        topResultScores.to_excel(analysisDir.joinpath(f'Scores with balanced accuracy over 0.60 (Top Scores).xlsx'), index= False)        
+        
+        json.dump({
+            'Number of Combinations per Dataset': datasetResultScores.groupby(by='Dataset')['Dataset'].aggregate(['count']).to_dict()['count'],
+            'Top Feature Selection Method Used': topResultScores['Feature Selection Method'].unique().tolist(),
+            'Top Classification Algorithm Used': topResultScores['Classification Algorithm'].unique().tolist(),    
+        }, analysisDir.joinpath(f'Selected Features for Optimal Configuration.json').open('w'), indent= 1)        
+        
+        # Optimal Evaluation Combination per Dataset
+        idxs = datasetResultScores.groupby('Dataset')['Balanced Accuracy'].transform(max) == datasetResultScores['Balanced Accuracy']
+        topResultScoresPerDataset = datasetResultScores[idxs].reset_index()
+        # topResultScoresPerDataset = topResultScoresPerDataset[['Dataset', 'Feature Selection Method', 'Classification Algorithm', 'Balanced Accuracy', 'Optimal Feature Number', 'Optimal Threshold']]
+        topResultScoresPerDataset.to_excel(analysisDir.joinpath(f'Best Combination per Dataset.xlsx'), index= False)
+
         
         
