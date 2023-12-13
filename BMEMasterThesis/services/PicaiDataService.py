@@ -7,7 +7,7 @@ from ..utils.utils import prettifyClassificationAlgorithmName, prettifyFeatureSe
 
 from sklearn.metrics import balanced_accuracy_score, cohen_kappa_score, f1_score, precision_score, recall_score, roc_auc_score, accuracy_score
 from numpy.typing import NDArray
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -151,8 +151,7 @@ class PicaiDataService(DataService):
         combinationResults = []
         for combinationResultFile in PATHS.getResultsDir(dataset).glob('*.json'):
             combinationResult = json.load(combinationResultFile.open())
-            combination = str(combinationResultFile).split(os.sep)[-1].removesuffix('.json').split('_')
-            method, model = combination[0], combination[1]            
+            method, model = DataService.getMethodAndModelNamesFromFilename(combinationResultFile)         
             
             optimalThreshold = None
             optimalFeatureNumber = None
@@ -189,10 +188,6 @@ class PicaiDataService(DataService):
             combinationResults.append(combinationResultsDict)
         
         pd.DataFrame(combinationResults).to_csv(scoresCSVFile, index=False)
-            
-            
-            
-            
         
         
     

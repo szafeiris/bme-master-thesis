@@ -86,6 +86,15 @@ class Paths:
         path.mkdir(exist_ok=True)
         return path
     
+    def getAnalysisDir(self, dataset: str = ""):
+        dataset = dataset.strip()
+        path = self.ANALYSIS_DIR.joinpath(self.transformDataset(dataset))
+        path.mkdir(exist_ok=True)
+        path.joinpath('plots').mkdir(exist_ok=True)
+        path.joinpath('plots').joinpath('classifiers').mkdir(exist_ok=True)
+        path.joinpath('plots').joinpath('methods').mkdir(exist_ok=True)
+        return path
+    
     def getScoresCsvFile(self, dataset: str = ""):
         return self.RESULTS_DIR.joinpath(f'scores.{self.transformDataset(dataset)}.csv')
     
