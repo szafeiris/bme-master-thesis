@@ -182,9 +182,8 @@ class PicaiVisualizer(Visualizer):
     def visualizeDatasets(self, datasets: List[str], saveName: str | Path) -> None:
         if isinstance(saveName, Path):
             saveName = str(saveName)
-        
+                    
         analysisDir = PATHS.getAnalysisDir(saveName)
-        radiomicFeaturesNames = self._dataService.getRadiomicFeatureNames()
         
         datasetResultScores = pd.concat([self._dataService.getScores(dataset) for dataset in datasets], ignore_index= True)
         datasetResultScores.sort_values(by=['Balanced Accuracy', 'ROC AUC', 'Dataset', 'Feature Selection Method', 'Classification Algorithm'])
@@ -203,7 +202,6 @@ class PicaiVisualizer(Visualizer):
         for m in methods:
             Visualizer.generateScorePlotByFSMethod('Balanced Accuracy', m, datasetResultScores, path=analysisDir.joinpath('plots').joinpath('methods'))
 
-        
         topResultScores = datasetResultScores.loc[datasetResultScores['Balanced Accuracy'] >= 0.60].copy()
         topResultScores = topResultScores.sort_values(by=['Balanced Accuracy',  'Dataset'], ascending=False)
         topResultScores.to_excel(analysisDir.joinpath(f'Scores with balanced accuracy over 0.60 (Top Scores).xlsx'), index= False)        
