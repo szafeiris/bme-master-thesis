@@ -178,6 +178,8 @@ class PicaiVisualizer(Visualizer):
         
         selectedRadiomicFeaturesStatistics = PicaiDataService.calculateFeatureStatistics(selectedRadiomicFeaturesNames)
         selectedRadiomicFeaturesStatistics.to_excel(analysisDir.joinpath(f'Statistics for Selected Features of Optimal Configuration.xlsx'))
+        
+        return bestMethod, bestModel
     
     def visualizeDatasets(self, datasets: List[str], saveName: str | Path) -> None:
         if isinstance(saveName, Path):

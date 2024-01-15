@@ -10,7 +10,6 @@ from sklearn.pipeline import Pipeline
 
 import numpy as np
 import json
-# import shap
 
 class EvaluationCombination:
     def __init__(self, method: str, model: str) -> None:
@@ -220,11 +219,6 @@ class GridSearchNestedCVEvaluation:
         
         if ('urf' in evaluationCombination.method) or ('relieff' == evaluationCombination.method):
             data['selected_features'] = grid.best_estimator_.get_params()['steps'][1][1].top_features_[:grid.best_estimator_.get_params()['steps'][1][1].n_features_to_select]
-
-        # explainer = shap.Explainer(grid.predict, X_test)
-        # shap_values = explainer.shap_values(X_test)
-        # self._logger.debug(shap_values)
-        # shap.summary_plot(shap_values, X_test, feature_names=self.radiomicFeaturesNames)
         
         return data.copy()
 

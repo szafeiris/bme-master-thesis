@@ -98,6 +98,12 @@ class Paths:
         path.joinpath('plots').joinpath('methods').mkdir(exist_ok=True)
         return path
     
+    def getShapValueFile(self, dataset: str):
+        return self.getAnalysisDir(dataset).joinpath(f'shap_values.{dataset.lower()}.shapv')
+    
+    def getShapValuePlotDir(self, dataset: str):
+        return self.getAnalysisDir(dataset).joinpath('shap_values')
+    
     def getScoresCsvFile(self, dataset: str = ""):
         return self.RESULTS_DIR.joinpath(f'scores.{self.transformDataset(dataset)}.csv')
     
