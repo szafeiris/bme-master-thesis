@@ -98,8 +98,8 @@ class Paths:
         path.joinpath('plots').joinpath('methods').mkdir(exist_ok=True)
         return path
     
-    def getShapValueFile(self, dataset: str):
-        return self.getAnalysisDir(dataset).joinpath(f'shap_values.{dataset.lower()}.shapv')
+    def getShapExplainerFile(self, dataset: str):
+        return self.getAnalysisDir(dataset).joinpath(f'shap_values.{dataset.lower()}.save')
     
     def getShapValuePlotDir(self, dataset: str):
         path =  self.getAnalysisDir(dataset).joinpath('shap_values')

@@ -1,5 +1,6 @@
 from sklearn.discriminant_analysis import StandardScaler
 
+
 from ..algorithm import decodeMethod, decodeModel
 from ..visualizer import PicaiVisualizer
 from ..utils.CustomJSONEncoder import CustomJSONEncoder
@@ -8,6 +9,7 @@ from ..utils.notification import send_to_telegram
 from ..utils.config import PATHS, Datasets
 from ..services import PicaiDataService
 from .Pipeline import Pipeline
+from ..utils import log
 
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.pipeline import Pipeline as sklearnPipeline
@@ -162,39 +164,6 @@ class FullCombinationPipeline(Pipeline):
             'bestModel': bestModel
         }
         self._saveState()
-    
-    def __step_6_calculate_SHAP_values__(self):
-        shapValuePlotDir = PATHS.getShapValuePlotDir(self._dataset)
-        shapValueFile = PATHS.getShapValueFile(self._dataset)
-        if not shapValueFile.exists():
-            bestMethod, bestModel = self._state['bestMethod'], self._state['bestModel']
-            bestMethodResultFile = PATHS.getResultsForCombinationDir(self._dataset, bestMethod, bestModel)
-            bestMethodParams = json.load(bestMethodResultFile.open())['best_method_params']
-            method = decodeMethod(bestMethod)
-            method.set_params(**bestMethodParams)
-            pipeline = sklearnPipeline([
-                ('standard_scaler', StandardScaler()),
-                ('feature_selector', method),
-                ('classifier', decodeModel(bestModel))
-            ])
-
-            pipeline.fit(self._state['X'][self._state['train_index']], self._state['y'][self._state['train_index']])
-            explainer = shap.Explainer(pipeline.predict, self._state['X'][self._state['train_index']])
-            shap_values = explainer.shap_values(self._state['X'][self._state['test_index']])
-            json.dump(shap_values, shapValueFile.open('w'), cls=CustomJSONEncoder, indent=1)
-        else:
-            shap_values = json.load(shapValueFile.open())
-        
-        shap.summary_plot(shap_values, self._state['X'][self._state['test_index']], feature_names=self._state['radiomicFeaturesNames'], show=False)
-        plt.tight_layout()
-        plt.savefig(shapValuePlotDir.joinpath('.summary_plot.png'), format='png')
-        plt.close()
-        
-        self._state = {
-            **self._state,
-            'shapValues': shap_values
-        }
-        self._saveState()
         
     def _unpackArgs(self, **kwargs):
         self.__isFixedBinWidth = kwargs['isFixedBinWidth'] if 'isFixedBinWidth' in kwargs else True
@@ -210,7 +179,6 @@ class FullCombinationPipeline(Pipeline):
             self.__step_3_evaluate__()
             self.__step_4_createScores__()
             self.__step_5_visualize__()
-            self.__step_6_calculate_SHAP_values__()
             self._logger.debug(f'Pipeline {self.__class__.__name__}({self._dataset}) ended')
         except KeyboardInterrupt:
             self._logger.warning('Pipeline finished unexpectedly after keyboard interupt')
