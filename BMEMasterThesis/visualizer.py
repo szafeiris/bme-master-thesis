@@ -2,9 +2,10 @@ from .utils.utils import simplifyFeatureSelectionMethodName, simplifyClassificat
 from .utils import log, Datasets, PATHS, getLogger
 from .services import DataService, PicaiDataService
 
+from typing import Any, Dict, List
 import matplotlib.pyplot as plt
 from pathlib import Path
-from typing import Any, Dict, List
+import seaborn as sns
 import pandas as pd
 import numpy as np
 import json
@@ -27,11 +28,12 @@ class Visualizer:
     def getMaxScore(scoreName: str, resultScores: pd.DataFrame):
         return resultScores.loc[resultScores[scoreName].idxmax()]
     
-    def generateBoxplotForScore(scoreName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None):
+    def generateBoxplotForScore(scoreName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None, rotateX=None):
+        sns.set_theme()
         resultScoresBoxplot = resultScore.boxplot(
             column = [scoreName,], 
             by = 'Dataset', 
-            rot = 0, 
+            rot = rotateX if rotateX else 0, 
             figsize=(10, 10))
         resultScoresBoxplot.plot()
         plt.title(f'Distribution of {scoreName}')
@@ -49,8 +51,9 @@ class Visualizer:
             plt.show()
         plt.close()
     
-    def generatePerClassifierPlotForScore(scoreName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None):
-        resultScore.groupby(['Dataset','Classification Algorithm'])[scoreName].max().unstack().plot.bar(rot= 0, figsize= (10, 5))
+    def generatePerClassifierPlotForScore(scoreName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None, rotateX=None):
+        sns.set_theme()
+        resultScore.groupby(['Dataset','Classification Algorithm'])[scoreName].max().unstack().plot.bar(rot= rotateX if rotateX else 0, figsize= (15, 7))
         plt.xlabel('Dataset')
         plt.ylabel(scoreName)
         plt.title(f'Highest {scoreName} achieved per Classification Algorithm')
@@ -66,8 +69,9 @@ class Visualizer:
             plt.show()
         plt.close()
     
-    def generatePerMethodPlotForScore(scoreName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None):
-        resultScore.groupby(['Dataset','Feature Selection Method'])[scoreName].max().unstack().plot.bar(rot= 0, figsize= (15, 7))
+    def generatePerMethodPlotForScore(scoreName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None, rotateX=None):
+        sns.set_theme()
+        resultScore.groupby(['Dataset','Feature Selection Method'])[scoreName].max().unstack().plot.bar(rot= rotateX if rotateX else 0, figsize= (15, 7))
         plt.xlabel('Dataset')
         plt.ylabel(scoreName)
         plt.title(f'Highest {scoreName} Achieved per Feature Selection Method')
@@ -83,14 +87,16 @@ class Visualizer:
             plt.show()
         plt.close()
         
-    def generateScorePlotByClassifier(scoreName: str, classifierName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None):
+    def generateScorePlotByClassifier(scoreName: str, classifierName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None, rotateX=None):
+        sns.set_theme()
         classfier = resultScore.loc[resultScore['Classification Algorithm'] == classifierName]
         classifierRes = classfier.groupby(['Dataset','Feature Selection Method'])[scoreName].max().unstack()
-        ax = classifierRes.plot.bar(figsize=(10, 5), rot=0)
+        ax = classifierRes.plot.bar(figsize=(10, 5), rot=rotateX if rotateX else 0)
         plt.legend(bbox_to_anchor=(1.01, 1.01), loc='upper left', borderaxespad=0)
         plt.title(classifierName)
         plt.xlabel('Dataset')
         plt.ylabel(scoreName)
+        plt.tight_layout()
         ax.set(axisbelow=True)
         plt.grid(axis='y')
 
@@ -103,15 +109,17 @@ class Visualizer:
             plt.show()
         plt.close()
 
-    def generateScorePlotByFSMethod(scoreName: str, featureSelectionMethodName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None):
+    def generateScorePlotByFSMethod(scoreName: str, featureSelectionMethodName: str, resultScore: pd.DataFrame, showPlot: bool = False, path: str | Path = None, rotateX=None):
+        sns.set_theme()
         fsMethod = resultScore.loc[resultScore['Feature Selection Method'] == featureSelectionMethodName]
         fsMethodRes = fsMethod.groupby(['Dataset','Classification Algorithm'])[scoreName].max().unstack()
-        ax = fsMethodRes.plot.bar(figsize=(10, 5), rot=0)
+        ax = fsMethodRes.plot.bar(figsize=(10, 5), rot=rotateX if rotateX else 0)
         plt.legend(bbox_to_anchor=(1.01, 1.01), loc='upper left', borderaxespad=0)
         plt.title(featureSelectionMethodName)
         plt.xlabel('Dataset')
         plt.ylabel(scoreName)
         ax.set(axisbelow=True)
+        plt.tight_layout()
         plt.grid(axis='y')
 
         if not (path is None):
@@ -190,19 +198,19 @@ class PicaiVisualizer(Visualizer):
         datasetResultScores = pd.concat([self._dataService.getScores(dataset) for dataset in datasets], ignore_index= True)
         datasetResultScores.sort_values(by=['Balanced Accuracy', 'ROC AUC', 'Dataset', 'Feature Selection Method', 'Classification Algorithm'])
         
-        Visualizer.generateBoxplotForScore('Balanced Accuracy', datasetResultScores, path=analysisDir.joinpath('Balanced Accuracy Boxplot.jpg'))
-        Visualizer.generateBoxplotForScore('ROC AUC', datasetResultScores, path=analysisDir.joinpath('ROC AUC Boxplot.jpg'))
-        Visualizer.generateBoxplotForScore('Cohen Kappa', datasetResultScores, path=analysisDir.joinpath('Cohen Kappa Boxplot.jpg'))
+        Visualizer.generateBoxplotForScore('Balanced Accuracy', datasetResultScores, path=analysisDir.joinpath('Balanced Accuracy Boxplot.jpg'), rotateX=45)
+        Visualizer.generateBoxplotForScore('ROC AUC', datasetResultScores, path=analysisDir.joinpath('ROC AUC Boxplot.jpg'), rotateX=45)
+        Visualizer.generateBoxplotForScore('Cohen Kappa', datasetResultScores, path=analysisDir.joinpath('Cohen Kappa Boxplot.jpg'), rotateX=45)
         
-        Visualizer.generatePerClassifierPlotForScore('Balanced Accuracy', datasetResultScores, path=analysisDir.joinpath('Balanced Accuracy per Classifier.jpg'))
-        Visualizer.generatePerMethodPlotForScore('Balanced Accuracy', datasetResultScores, path=analysisDir.joinpath('Balanced Accuracy per Feature Selection Method.jpg'))
+        Visualizer.generatePerClassifierPlotForScore('Balanced Accuracy', datasetResultScores, path=analysisDir.joinpath('Balanced Accuracy per Classifier.jpg'), rotateX=45)
+        Visualizer.generatePerMethodPlotForScore('Balanced Accuracy', datasetResultScores, path=analysisDir.joinpath('Balanced Accuracy per Feature Selection Method.jpg'), rotateX=45)
         
         classifiers = datasetResultScores['Classification Algorithm'].unique().tolist()
         methods = datasetResultScores['Feature Selection Method'].unique().tolist()
         for c in classifiers:
-            Visualizer.generateScorePlotByClassifier('Balanced Accuracy', c, datasetResultScores, path=analysisDir.joinpath('plots').joinpath('classifiers'))
+            Visualizer.generateScorePlotByClassifier('Balanced Accuracy', c, datasetResultScores, path=analysisDir.joinpath('plots').joinpath('classifiers'), rotateX=45)
         for m in methods:
-            Visualizer.generateScorePlotByFSMethod('Balanced Accuracy', m, datasetResultScores, path=analysisDir.joinpath('plots').joinpath('methods'))
+            Visualizer.generateScorePlotByFSMethod('Balanced Accuracy', m, datasetResultScores, path=analysisDir.joinpath('plots').joinpath('methods'), rotateX=45)
 
         topResultScores = datasetResultScores.loc[datasetResultScores['Balanced Accuracy'] >= 0.60].copy()
         topResultScores = topResultScores.sort_values(by=['Balanced Accuracy',  'Dataset'], ascending=False)
