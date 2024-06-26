@@ -1,0 +1,1 @@
+from bme_thesis.utils.CustomJSONEncoder import CustomJSONEncoder
