@@ -206,4 +206,4 @@ poetry.toml
 data/*
 /logs/
 *.npy
-environments/*
+environments/
