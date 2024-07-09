@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from bme_thesis.logger import getLogger
 from bme_thesis.utils.CustomJSONEncoder import CustomJSONEncoder
 from bme_thesis.utils.paths import Paths
 

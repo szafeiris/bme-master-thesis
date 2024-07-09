@@ -1,5 +1,6 @@
-import os
+import os, sys
 from pathlib import Path
+from typing import List, Tuple
 import pandas as pd
 import numpy as np
 
@@ -20,7 +21,7 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
             startTime = TimeUtil.now()
             
             self._unpackArgs(**kwargs)
-            self.__step_1_extractRadiomics__()
+            self._step_1_extractRadiomics()
             # self.__step_2_readData__()
             # self.__step_3_evaluate__()
             # self.__step_4_createScores__()
@@ -32,7 +33,7 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
         except Exception as e:
             self.log.error(f'An error occured during the execution of pipeline: {self.__class__.__name__}.')
             self.log.exception(e)
-            sendNotification(f'An error occured during the execution of pipeline: {self.__class__.__name__} for dataset: {self.dataset} [{str(e)}]')
+            sendNotification(f'An error occured during the execution of pipeline: {self.__class__.__name__} for dataset: {dataset} [{str(e)}]')
 
     def _unpackArgs(self, **kwargs):
         self.ctx.isFixedBinWidth = kwargs.get('isFixedBinWidth', True)
@@ -41,23 +42,23 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
     
     
     def generateBinWidth(self, dataset: str = None, bins: int = 32, normalizeScale: int = 100) -> Tuple[float, int]:
-        self._logger.debug(f'Calculating bin width for dataset: {dataset}, using {bins} bins and normalization scale equal to {normalizeScale}')
-        rangesFile = PATHS.getRangesFile(dataset)        
+        self.log.debug(f'Calculating bin width for dataset: {dataset}, using {bins} bins and normalization scale equal to {normalizeScale}')
+        rangesFile = Paths.getRangesFile(dataset)        
         if rangesFile.exists() and rangesFile.is_file():
-            rangesData = json.load(rangesFile.open())
+            rangesData = JSON.load(rangesFile)
             return rangesData['binWidth'], rangesData['globalMin']
         
-        with PATHS.PICAI_PATIENTS_ID_FILE.open() as patientIdsFile:
+        with Paths.getPicaiPatientIdsFile().open() as patientIdsFile:
             ranges: List[float] = []
             rangeData = {}
             globalMin = sys.maxsize
             for patientId in patientIdsFile:
                 patientId = patientId.strip()
-                imageFile = PATHS.getImagePathByDatasetAndPatientId(dataset, patientId)
-                maskFile = PATHS.getMaskPathByPatientId(patientId)
+                imageFile = Paths.getImagePathByDatasetAndPatientId(dataset, patientId)
+                maskFile = Paths.getMaskPathByPatientId(patientId)
                     
-                image = self._dataReader.read(imageFile)
-                mask = self._dataReader.read(maskFile)
+                image = self.dataReader.read(imageFile)
+                mask = self.dataReader.read(maskFile)
                 
                 rangeData = {
                     **rangeData,
@@ -87,17 +88,13 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
                         }
                     }
             
-            if (dataset in [ Datasets.FAT_NORMALIZED,
-                             Datasets.MUSCLE_NORMALIZED,
-                             Datasets.N4_NORMALIZED,
-                             Datasets.ORIGINAL_NORMALIZED
-                           ]):
+            if dataset in Datasets.NORMALIZED_DATASETS:
                 ranges = [ r * normalizeScale for r in ranges ]
             
             meanRanges = np.mean(ranges)
             binWidth = int(np.round(meanRanges / bins))
             
-            self._logger.debug(f'Mean Ranges for dataset `{dataset}` is {meanRanges}')
+            self.log.debug(f'Mean Ranges for dataset `{dataset}` is {meanRanges}')
             
             rangeData = {
                 **rangeData,
@@ -111,7 +108,7 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
             JSON.save(rangeData, rangesFile, sort_keys=True, indent=4)
             return binWidth, globalMin
         
-    def extractRadiomics(self, dataset: str, outputCsvFile: str | Path = None, keepDiagnosticsFeatures: bool = False, binWidth: int | None = None, shiftValue: float | int = None, isFixedBinWidth: bool = True, binCount: int = None, normalizeScale: int | None = None):
+    def extractRadiomics(self, dataset: str, outputCsvFile: str | Path = None, keepDiagnosticsFeatures: bool = False, binWidth: int | None = None, shiftValue: float | int | None = None, isFixedBinWidth: bool = True, binCount: int | None = None):
         csvData = {
             'Image': [],
             'Mask': [],
@@ -128,22 +125,23 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
 
         self.log.info("Extracting radiomics features")
         if isFixedBinWidth:
-            if (not binWidth is None) and (not shiftValue is None):
-                radiomicFeaturesDataframe = self.radiomicsExtractor.extract(csvData,
-                                                                             keepDiagnosticsFeatures=keepDiagnosticsFeatures,
-                                                                             binWidth=binWidth,
-                                                                             voxelArrayShift=shiftValue
-                                                                            )
-            else:
+            if (binWidth is None) or (shiftValue is None):
                 raise ValueError(f'`binWidth` or `shiftValue` cannot be None')
+            
+            radiomicFeaturesDataframe = self.radiomicsExtractor.extract( csvData,
+                                                                         keepDiagnosticsFeatures=keepDiagnosticsFeatures,
+                                                                         binWidth=binWidth,
+                                                                         voxelArrayShift=shiftValue
+                                                                        )    
         else:
-            if not binCount is None:
-                radiomicFeaturesDataframe = self.radiomicsExtractor.extract(csvData,
-                                                                             keepDiagnosticsFeatures=keepDiagnosticsFeatures,
-                                                                             binCount=binCount
-                                                                            )
-            else:
+            if binCount is None:
                 raise ValueError(f'`binCount` cannot be None')
+            
+            radiomicFeaturesDataframe = self.radiomicsExtractor.extract( csvData,
+                                                                         keepDiagnosticsFeatures=keepDiagnosticsFeatures,
+                                                                         binCount=binCount
+                                                                        )
+                
             
         if outputCsvFile is not None:
             self.log.info('Saving radiomics file.')
@@ -158,7 +156,7 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
             self.log.info(f'Radiomics for `{self.ctx.dataset}` are loaded successfully')
             return
         
-        normalizeScale = self.ctx.normallizeScale if self.ctx.dataset in Datasets.NORMALIZED_DATASETS else None  
+        normalizeScale = self.ctx.normallizeScale if self.ctx.dataset in Datasets.NORMALIZED_DATASETS else None 
         if self.ctx.isFixedBinWidth:
             binWidth, globalMin = self.generateBinWidth(self.ctx.dataset, self.ctx.binCount, normalizeScale)
             normalizedGlobalMin = 0 if globalMin > 0 else -globalMin
@@ -168,11 +166,9 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
                                                         self.ctx.radiomicsFile, 
                                                         binWidth=binWidth, 
                                                         shiftValue=normalizedGlobalMin, 
-                                                        normalizeScale=normalizeScale
                                                        )
         else:
             self.ctx.radiomics = self.extractRadiomics( self.ctx.dataset,
                                                         self.ctx.radiomicsFile,
                                                         binCount=self.ctx.binCount,
-                                                        normalizeScale=normalizeScale
                                                        )

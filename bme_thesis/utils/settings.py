@@ -20,7 +20,7 @@ class BmeThesisSettings(BaseSettings):
     log_filename: str = "bme-master-thesis.log"
 
     # Pyradiomics Params.yml files
-    pyradiomics_params_file: str = "./resources/Params.yaml"
+    pyradiomics_params_file: str = "./data/resources/Params.yaml"
 
     # Telegram settings
     telegram_token: str = ""

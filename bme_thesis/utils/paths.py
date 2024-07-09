@@ -30,6 +30,9 @@ class Paths:
     def rangesDir():
         return Paths.dataDir().joinpath('ranges')
     
+    def getPicaiPatientIdsFile():
+        return Paths.picaiDir().joinpath('valid-patient-ids.txt')
+    
     def getDatasetImagesDir(dataset: str = ""):
         dataset = dataset.strip()
         return Paths.picaiDir().joinpath('images').joinpath(Paths.transformDataset(dataset))
