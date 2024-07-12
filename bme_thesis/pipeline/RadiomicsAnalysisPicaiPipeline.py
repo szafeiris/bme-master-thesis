@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Tuple
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import StratifiedGroupKFold
 
 from bme_thesis.pipeline.PicaiPipeline import PicaiPipeline
 from bme_thesis.utils.dataset import Datasets
@@ -22,7 +23,7 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
             
             self._unpackArgs(**kwargs)
             self._step_1_extractRadiomics()
-            # self.__step_2_readData__()
+            self._step_2_load_data()
             # self.__step_3_evaluate__()
             # self.__step_4_createScores__()
             # self.__step_5_visualize__()
@@ -108,7 +109,7 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
             JSON.save(rangeData, rangesFile, sort_keys=True, indent=4)
             return binWidth, globalMin
         
-    def extractRadiomics(self, dataset: str, outputCsvFile: str | Path = None, keepDiagnosticsFeatures: bool = False, binWidth: int | None = None, shiftValue: float | int | None = None, isFixedBinWidth: bool = True, binCount: int | None = None):
+    def extractRadiomics(self, dataset: str, outputCsvFile: str | Path = None, keepDiagnosticsFeatures: bool = False, binWidth: int | None = None, shiftValue: float | int | None = None, isFixedBinWidth: bool = True, binCount: int | None = None, normalizeScale: int | None = None):
         csvData = {
             'Image': [],
             'Mask': [],
@@ -131,7 +132,8 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
             radiomicFeaturesDataframe = self.radiomicsExtractor.extract( csvData,
                                                                          keepDiagnosticsFeatures=keepDiagnosticsFeatures,
                                                                          binWidth=binWidth,
-                                                                         voxelArrayShift=shiftValue
+                                                                         voxelArrayShift=shiftValue,
+                                                                         normalizeScale=normalizeScale
                                                                         )    
         else:
             if binCount is None:
@@ -139,7 +141,8 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
             
             radiomicFeaturesDataframe = self.radiomicsExtractor.extract( csvData,
                                                                          keepDiagnosticsFeatures=keepDiagnosticsFeatures,
-                                                                         binCount=binCount
+                                                                         binCount=binCount,
+                                                                         normalizeScale=normalizeScale
                                                                         )
                 
             
@@ -156,7 +159,7 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
             self.log.info(f'Radiomics for `{self.ctx.dataset}` are loaded successfully')
             return
         
-        normalizeScale = self.ctx.normallizeScale if self.ctx.dataset in Datasets.NORMALIZED_DATASETS else None 
+        normalizeScale = self.ctx.normallizeScale if self.ctx.dataset in Datasets.NORMALIZED_DATASETS else None
         if self.ctx.isFixedBinWidth:
             binWidth, globalMin = self.generateBinWidth(self.ctx.dataset, self.ctx.binCount, normalizeScale)
             normalizedGlobalMin = 0 if globalMin > 0 else -globalMin
@@ -164,7 +167,7 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
             
             self.ctx.radiomics = self.extractRadiomics( self.ctx.dataset, 
                                                         self.ctx.radiomicsFile, 
-                                                        binWidth=binWidth, 
+                                                        binWidth=binWidth, # Maybe use only a single value, from original (i.e. 11) 
                                                         shiftValue=normalizedGlobalMin, 
                                                        )
         else:
@@ -172,3 +175,44 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
                                                         self.ctx.radiomicsFile,
                                                         binCount=self.ctx.binCount,
                                                        )
+            
+    def _step_2_load_data(self):
+        radiomicFeatures = self.ctx.radiomics
+        picaiMetadata = pd.read_csv(Paths.getPicaiMetadataFile())
+        
+        jointDfs = pd.merge(picaiMetadata, radiomicFeatures, on='Patient_Id')
+        conditions = [
+            (jointDfs['Label'] == 2) & (jointDfs['Manufacturer'] == 'Philips Medical Systems'),
+            (jointDfs['Label'] == 2) & (jointDfs['Manufacturer'] == 'SIEMENS'),
+            (jointDfs['Label'] > 2)  & (jointDfs['Manufacturer'] == 'Philips Medical Systems'),
+            (jointDfs['Label'] > 2)  & (jointDfs['Manufacturer'] == 'SIEMENS'),
+        ]
+    
+        jointDfs['StratifiedLabels'] = np.select(conditions, [0, 1, 2, 3])
+        self.ctx.yStratified = jointDfs['StratifiedLabels'].to_numpy()
+    
+        # Get features and original labels
+        self.ctx.patientIds = radiomicFeatures.pop('Patient_Id').to_list()
+        labels = radiomicFeatures.pop('Label')
+        self.ctx.featureNames = radiomicFeatures.columns.to_list()
+    
+        self.ctx.X = radiomicFeatures.to_numpy()
+        self.ctx.y = np.copy(labels)
+        self.ctx.y[self.ctx.y == 2] = 0   # 0: ISUP = 2,
+        self.ctx.y[self.ctx.y > 2] = 1    # 1: ISUP > 2
+    
+        if not Paths.getPicaiIndicesFile().exists():           
+            stratifiedGroupKFold = StratifiedGroupKFold(n_splits=3, random_state=42)
+            (self.ctx.trainIndices, self.ctx.testIndices) = next(stratifiedGroupKFold.split(self.ctx.X, self.ctx.y, self.ctx.patientIds))         
+            
+            indicesData = {
+                'train_idx': list([int(i) for i in self.ctx.trainIndices]),
+                'test_idx': list([int(i) for i in self.ctx.testIndices]),
+            }
+            
+            JSON.save(indicesData, Paths.getPicaiIndicesFile())
+        else:
+            indicesData = JSON.load(Paths.getPicaiIndicesFile())
+            self.ctx.trainIndices = np.asarray(indicesData['train_idx'])
+            self.ctx.testIndices = np.asarray(indicesData['test_idx'])
+        

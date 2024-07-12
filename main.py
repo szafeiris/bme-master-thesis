@@ -10,3 +10,7 @@ log = getLogger(__name__)
 
 pipeline = RadiomicsAnalysisPicaiPipeline(Datasets.ORIGINAL)
 pipeline.run()
+
+# for dataset in Datasets.ALL_DATASETS:
+    # pipeline = RadiomicsAnalysisPicaiPipeline(dataset)
+    # pipeline.run()

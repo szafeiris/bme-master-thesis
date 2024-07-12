@@ -33,6 +33,12 @@ class Paths:
     def getPicaiPatientIdsFile():
         return Paths.picaiDir().joinpath('valid-patient-ids.txt')
     
+    def getPicaiMetadataFile():
+        return Paths.picaiDir().joinpath('picai_metadata.csv')
+    
+    def getPicaiIndicesFile():
+        return Paths.picaiDir().joinpath('picai_indices.json')
+    
     def getDatasetImagesDir(dataset: str = ""):
         dataset = dataset.strip()
         return Paths.picaiDir().joinpath('images').joinpath(Paths.transformDataset(dataset))
