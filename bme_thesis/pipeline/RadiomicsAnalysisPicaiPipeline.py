@@ -39,6 +39,7 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
     def _unpackArgs(self, **kwargs):
         self.ctx.isFixedBinWidth = kwargs.get('isFixedBinWidth', True)
         self.ctx.binCount = kwargs['binCount'] if 'binCount' in kwargs and isinstance(kwargs['binCount'], int) and kwargs['binCount']  > 0 else 32
+        self.ctx.binWidth = kwargs['binWidth'] if 'binWidth' in kwargs and isinstance(kwargs['binWidth'], int) and kwargs['binWidth']  > 0 else self.ctx.binWidth
         self.ctx.normallizeScale = kwargs['normallizeScale'] if 'normallizeScale' in kwargs and isinstance(kwargs['normallizeScale'], int) and kwargs['normallizeScale']  > 0 else 100
     
     
@@ -161,14 +162,16 @@ class RadiomicsAnalysisPicaiPipeline(PicaiPipeline):
         
         normalizeScale = self.ctx.normallizeScale if self.ctx.dataset in Datasets.NORMALIZED_DATASETS else None
         if self.ctx.isFixedBinWidth:
-            binWidth, globalMin = self.generateBinWidth(self.ctx.dataset, self.ctx.binCount, normalizeScale)
+            calculatedBinWidth, globalMin = self.generateBinWidth(self.ctx.dataset, self.ctx.binCount, normalizeScale)
+            binWidth = calculatedBinWidth if self.ctx.binWidth is None else self.ctx.binWidth
             normalizedGlobalMin = 0 if globalMin > 0 else -globalMin
+
             self.log.info(f'Bin width: {binWidth}, Global Minimum (Normalized): {globalMin} ({normalizedGlobalMin})')
             
             self.ctx.radiomics = self.extractRadiomics( self.ctx.dataset, 
                                                         self.ctx.radiomicsFile, 
                                                         binWidth=binWidth, # Maybe use only a single value, from original (i.e. 11) 
-                                                        shiftValue=normalizedGlobalMin, 
+                                                        shiftValue=normalizedGlobalMin,
                                                        )
         else:
             self.ctx.radiomics = self.extractRadiomics( self.ctx.dataset,

@@ -8,6 +8,7 @@ class PicaiPipelineContext(BaseModel):
     dataset: str = None
     isFixedBinWidth: bool = True
     binCount: int = 32
+    binWidth: int = None
     normallizeScale: int | float = 100
     
     radiomicsFile: Path = None
